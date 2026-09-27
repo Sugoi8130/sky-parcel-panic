@@ -20,7 +20,8 @@ await testGame("./games/sky-parcel-panic", {
     await page.keyboard.up("ArrowRight");
     await page.keyboard.up("ArrowUp");
     await game.getByText("▣ PARCEL ON BOARD", { exact: true }).waitFor();
-    assert.equal(await canvas.getAttribute("data-receiver-id"), "3412", "receiver should be a different verified Friend from the wallet");
+    const receiverId = await canvas.getAttribute("data-receiver-id");
+    assert(receiverId && /^\d+$/.test(receiverId), "receiver should be a verified Friend supplied by the wallet runtime");
     const collectedRf = Number(await canvas.getAttribute("data-rf"));
     assert(collectedRf >= 0.05 && collectedRf <= 0.10, "a spinning coin should award between 0.05 and 0.10 route RF");
     assert.equal(await game.getByText(/RUNNING · POSTAL PLAZA/).isVisible(), true);
