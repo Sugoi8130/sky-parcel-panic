@@ -1,0 +1,6 @@
+node_modules/
+games/sky-parcel-panic/.friendsdk/
+*.log
+.DS_Store
+Thumbs.db
+

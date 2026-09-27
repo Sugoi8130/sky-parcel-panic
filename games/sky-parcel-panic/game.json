@@ -1,0 +1,8 @@
+{
+  "name": "Sky Parcel Panic",
+  "consumable": "Unused Delivery Ticket",
+  "price": "1",
+  "outcomes": [
+    { "name": "Unused Route Result", "chanceBps": 10000, "reward": "1" }
+  ]
+}
