@@ -1,60 +1,76 @@
 # Sky Parcel Panic
 
-Sky Parcel Panic is a separate FriendSDK v0.1.2 prototype starring the player's
-verified Rare Friend. It is a colorful, SNES-inspired isometric delivery game and
-does not share source, assets, saves or build output with Alien Angler.
+Sky Parcel Panic is a standalone FriendSDK v0.1.2 game starring the player's
+verified Rare Friend. It is a colorful, SNES-inspired isometric delivery arcade
+game and does not share source, assets, saves, or build output with Alien Angler.
 
-## Run
+## Run locally
+
+Requirements: Node.js 22+ and pnpm.
 
 ```sh
-pnpm install
+pnpm install --frozen-lockfile
 pnpm run dev
 ```
 
-Open the printed local URL. The playable preview uses the FriendSDK ownership
-gate and requires a browser wallet on Robinhood mainnet (chain 4663) holding a
-hardwired Rare Friends Generations NFT (generation 1 or higher).
+Open the printed local URL. The FriendSDK ownership gate requires a browser
+wallet on Robinhood mainnet (chain 4663) holding a hardwired Rare Friends
+Generations NFT, generation 1 or higher.
 
-## Demo rules
+## How to play
 
-- A route lasts 45 seconds and asks for five successful deliveries.
-- The route spans three connected districts: Postal Plaza, Bloom Market and
-  Windmill Route. Ride through the east or west edge to move between them.
-- Each district uses a wide open plaza layout with live, code-rendered direction
-  signs at the exits. Sign labels automatically name the neighboring district.
-- Drive with WASD or arrow keys. Hold Space, Shift or the on-screen BOOST button
+- Choose one of four worlds, each containing three connected scenes.
+- Complete five deliveries during a five-minute route.
+- Drive with WASD or arrow keys. Hold Space, Shift, or the touch BOOST button
   for a temporary speed increase.
-- Pick up the sparkling parcel, then reach the highlighted house door.
-- Pickup, delivery and traffic hitboxes are intentionally generous for fast,
-  arcade-style play. The scooter also moves faster than the original prototype.
-- Each pickup grants 25 points. Deliveries grant 100 points multiplied by the
-  current combo and add three seconds to the clock.
-- Delivering again within twelve seconds grows the combo, up to x5.
-- Colliding with a runaway carrot or bird removes one heart, two seconds and 40
-  points. The player receives brief collision protection after a hit.
-- The run ends after five deliveries, when time expires, or when all hearts are
-  lost. Reloading resets the session.
+- Pick up the sparkling parcel, follow the named exit signs, and reach the
+  highlighted Rare Friend recipient.
+- Deliver again within twelve seconds to grow the combo up to x5.
+- Avoid moving carrots and birds. A collision removes one heart, two seconds,
+  and 40 points, with brief protection after the hit.
+- Collect the ten small RF coins scattered through each scene. Each awards a
+  random 0.05-0.10 simulated route RF and restores 18 boost.
+- A Star Core has an 18% chance to appear for a route. It grants twelve seconds
+  of free boost and hazard immunity.
+- Finishing with at least 3:00, 2:00, or 1:00 remaining earns S, A, or B rank;
+  slower completions earn C. Rank bonuses are 120, 80, 50, and 25 simulated RF.
 
-The game has no audio in this demo. Reduced-motion preferences disable camera
-shake, pulsing markers and nonessential bobbing. Keyboard input is cleared when
-the tab loses focus, the document is hidden or the FriendSDK runtime pauses play.
+The four worlds are Postal Route, Forest Canopy, Coral Cove, and Cosmic Station.
+Every delivery recipient is randomly selected from other Rare Friends available
+in the connected wallet. Recipients celebrate when a parcel arrives.
 
-## SDK and economy scope
+## Courier Closet and simulated economy
 
-FriendSDK supplies wallet connection, Friend selection, fresh ownership checks,
-canonical Friend artwork, sandboxing and the initial session read. The action
-client's chance-game definition is a schema-only placeholder because SDK v0.1.2
-still requires one for the runtime. Delivery Tickets and Route Results are not
-presented, purchased or awarded by this game.
+The session starts with 1,400 simulated RF and no purchased cosmetics. The
+Courier Closet contains five headgear items, three scooters, three boost trails,
+and three head pets priced from 90 to 280 RF. Purchased items can be equipped
+immediately and rank rewards feed back into the same session wallet.
 
-This prototype performs no RF transaction, wallet signature, random payout or
-persistent save. A future economy could sell cosmetic scooters and trail effects
-for simulated RF, but none is implemented in this build.
+All RF balances, route coins, rewards, and purchases are simulated. There is no
+on-chain RF transfer, wallet signature, redeemable payout, or persistent save.
+The `game.json` chance definition is a schema-only placeholder required by
+FriendSDK v0.1.2; Delivery Tickets and Route Results are not shown or used.
 
-All environment artwork is drawn in code. Canonical Friend artwork is loaded
-through FriendSDK under its supplied artwork permissions.
+## Accessibility and audio
 
-The floating town uses original 2:1 isometric tiles, layered pixel shadows,
-animated water, market stalls, signposts and a working windmill. Screen-relative
-steering is converted to isometric world movement, so the arrow pad still feels
-natural on desktop and mobile.
+Three original chiptune route tracks are selected randomly each session. RF coin,
+Star Core, and delivery actions have dedicated sound cues. The HUD includes a
+mute toggle. Reduced-motion mode disables camera shake, pulsing markers, and
+nonessential bobbing. Keyboard input clears when the tab loses focus, the
+document is hidden, or FriendSDK pauses play.
+
+## Verification
+
+```sh
+pnpm run build
+pnpm run check
+pnpm run test
+```
+
+The browser test covers the five-minute route contract, map transitions, coin and
+Star Core rules, cosmetics, wallet Friend recipients, audio controls, delivery,
+and reduced-motion behavior.
+
+FriendSDK supplies wallet connection, Friend selection, ownership checks,
+canonical Friend artwork, sandboxing, and session initialization. Environment,
+item, interface, and audio assets are original to Sky Parcel Panic.
