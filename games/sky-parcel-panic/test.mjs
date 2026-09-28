@@ -18,6 +18,9 @@ await testGame("./games/sky-parcel-panic", {
     assert.equal(await canvas.getAttribute("data-route-seconds"), "300", "each route should use a five-minute countdown");
     assert.equal(await canvas.getAttribute("data-power-buff-spawn-rate"), "0.18", "the Star Core should keep its rare 18% route spawn rate");
     assert.equal(await canvas.getAttribute("data-power-buff-duration"), "12", "the Star Core should grant a 12-second power window");
+    assert.equal(await canvas.getAttribute("data-audio-ready"), "true", "choosing a map should initialize the chiptune audio engine after user input");
+    assert.equal(await canvas.getAttribute("data-music-playing"), "true", "the original chiptune loop should run during the route");
+    assert.equal(await canvas.getAttribute("data-audio-cues"), "rf-coin,star-core,delivery", "coin, Star Core, and delivery events should each expose a dedicated cue");
     assert(await canvas.getAttribute("data-parcel-x"), "the randomized route should expose its first parcel");
     assert.equal(await canvas.getAttribute("data-headgear"), "none", "a new player should start without free headgear");
     assert.equal(await canvas.getAttribute("data-pet"), "none", "a new player should start without a free pet");
@@ -118,6 +121,7 @@ await testGame("./games/sky-parcel-panic", {
     assert(Number(await canvas.getAttribute("data-collected-coins")) >= 1, "driving over a randomized RF coin should collect it");
     assert.equal(await canvas.getAttribute("data-coin-boost"), "18", "each RF coin should restore a fixed 18 boost");
     assert.equal(await canvas.getAttribute("data-last-coin-boost"), "18", "collecting a coin should apply its boost restoration");
+    assert(Number(await canvas.getAttribute("data-coin-sounds")) >= 1, "collecting an RF coin should trigger its pickup chime");
     const collectedRf = Number(await canvas.getAttribute("data-rf"));
     assert(collectedRf >= 0.05, "each spinning coin should award at least 0.05 route RF");
     assert.notEqual(await attributeNumber("player-x"), firstX, "keyboard controls should move the scooter on the isometric plaza");
@@ -140,6 +144,7 @@ await testGame("./games/sky-parcel-panic", {
     const deliveryLabel = await game.locator(".delivery-pips").getAttribute("aria-label");
     const endX = await canvas.getAttribute("data-player-x"), endY = await canvas.getAttribute("data-player-y");
     assert.equal(deliveryLabel, "1 of 5 deliveries", `delivery should complete in Mooncap Grove; player ended at ${endX},${endY}`);
+    assert(Number(await canvas.getAttribute("data-delivery-sounds")) >= 1, "a successful delivery should trigger its fanfare");
     await page.screenshot({ path: "../../outputs/sky-parcel-panic-delivery-celebration.png" });
 
     await game.getByRole("button", { name: "How to play" }).click();

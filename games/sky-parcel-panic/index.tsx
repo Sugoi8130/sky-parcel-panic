@@ -42,6 +42,8 @@ type Hud = { time: number; score: number; rf: number; combo: number; hearts: num
 type CosmeticCategory = "headgear" | "scooter" | "trail" | "pet";
 type EquippedCosmetics = { headgear: string | null; scooter: string; trail: string | null; pet: string | null };
 type Cosmetic = { id: string; name: string; category: CosmeticCategory; price: number; image: string; rarity: "C" | "R" | "E" | "L" };
+type AudioCue = "coin" | "buff" | "delivery";
+type GameAudio = { context: AudioContext; master: GainNode; music: GainNode; sfx: GainNode; timer: number | null; step: number };
 
 const VIEW = { width: 480, height: 320 };
 const WORLD = { width: 960, height: 640 };
@@ -72,6 +74,61 @@ const cosmetics: Cosmetic[] = [
   { id: "parcel-pup", name: "PARCEL PUP", category: "pet", price: 260, image: parcelPupUrl, rarity: "L" },
 ];
 const movementKeys = new Set(["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", " ", "shift"]);
+const MUSIC_STEP_MS = 125;
+const musicMelody = [659, 784, 880, 784, 659, 523, 587, 659, 784, 880, 1047, 880, 784, 659, 587, 523, 659, 784, 880, 988, 880, 784, 659, 587, 523, 587, 659, 784, 659, 587, 523, 0];
+const musicBass = [131, 131, 175, 175, 147, 147, 196, 196];
+
+function synthTone(audio: GameAudio, target: GainNode, frequency: number, duration: number, volume: number, delay = 0, type: OscillatorType = "square", endFrequency?: number) {
+  if (!frequency || audio.context.state === "closed") return;
+  const start = audio.context.currentTime + delay, oscillator = audio.context.createOscillator(), gain = audio.context.createGain();
+  oscillator.type = type; oscillator.frequency.setValueAtTime(frequency, start);
+  if (endFrequency) oscillator.frequency.exponentialRampToValueAtTime(endFrequency, start + duration);
+  gain.gain.setValueAtTime(.0001, start); gain.gain.exponentialRampToValueAtTime(volume, start + .012); gain.gain.exponentialRampToValueAtTime(.0001, start + duration);
+  oscillator.connect(gain); gain.connect(target); oscillator.start(start); oscillator.stop(start + duration + .02);
+}
+
+function createGameAudio(): GameAudio | null {
+  try {
+    const context = new AudioContext(), master = context.createGain(), music = context.createGain(), sfx = context.createGain();
+    master.gain.value = .72; music.gain.value = .34; sfx.gain.value = .78;
+    music.connect(master); sfx.connect(master); master.connect(context.destination);
+    return { context, master, music, sfx, timer: null, step: 0 };
+  } catch { return null; }
+}
+
+function scheduleMusicStep(audio: GameAudio) {
+  const step = audio.step++ % musicMelody.length, melody = musicMelody[step];
+  if (melody) synthTone(audio, audio.music, melody, .105, .055, 0, "square");
+  if (step % 2 === 0 && melody) synthTone(audio, audio.music, melody * 2, .055, .018, .035, "square");
+  if (step % 4 === 0) synthTone(audio, audio.music, musicBass[Math.floor(step / 4) % musicBass.length], .42, .07, 0, "triangle");
+  if (step % 8 === 6) synthTone(audio, audio.music, 1568, .035, .018, 0, "square", 1047);
+}
+
+function startGameMusic(audio: GameAudio) {
+  void audio.context.resume();
+  if (audio.timer !== null) return;
+  scheduleMusicStep(audio);
+  audio.timer = window.setInterval(() => scheduleMusicStep(audio), MUSIC_STEP_MS);
+}
+
+function stopGameMusic(audio: GameAudio | null) {
+  if (!audio || audio.timer === null) return;
+  window.clearInterval(audio.timer); audio.timer = null; audio.step = 0;
+}
+
+function playAudioCue(audio: GameAudio | null, cue: AudioCue) {
+  if (!audio) return;
+  void audio.context.resume();
+  if (cue === "coin") {
+    synthTone(audio, audio.sfx, 988, .075, .18, 0, "square"); synthTone(audio, audio.sfx, 1480, .11, .14, .065, "square");
+  } else if (cue === "buff") {
+    [523, 659, 784, 1047].forEach((note, index) => synthTone(audio, audio.sfx, note, .16, .14, index * .075, index % 2 ? "square" : "triangle"));
+    synthTone(audio, audio.sfx, 1568, .32, .09, .3, "sine");
+  } else {
+    [523, 659, 784, 1047].forEach((note, index) => synthTone(audio, audio.sfx, note, .2, .15, index * .09, "square"));
+    synthTone(audio, audio.sfx, 523, .48, .08, .36, "triangle"); synthTone(audio, audio.sfx, 784, .48, .07, .36, "triangle");
+  }
+}
 
 const houses = [
   { x: 90, y: 262, color: "#ff7c62", roof: "#d94e58", name: "Sky Post Office" },
@@ -679,6 +736,8 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
   const canvas = useRef<HTMLCanvasElement>(null);
   const shopPreview = useRef<HTMLCanvasElement>(null);
   const catalogueGrid = useRef<HTMLDivElement>(null);
+  const audio = useRef<GameAudio | null>(null);
+  const audioEvents = useRef({ coin: 0, buff: 0, delivery: 0 });
   const sprites = useRef<GenerationSprites | null>(null);
   const recipientRoster = useRef<{ id: bigint; sprites: GenerationSprites }[]>([]);
   const recipientSprites = useRef<GenerationSprites | null>(null);
@@ -714,6 +773,8 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
     setHud({ time: Math.max(0, Math.ceil(value.time)), score: value.score, rf: value.rf, combo: value.combo, hearts: value.hearts, deliveries: value.deliveries, carrying: value.carrying, boost: Math.round(value.boost), powerTime: Math.max(0, Math.ceil(value.powerTime)), message: value.message });
   };
   const startRun = (selection: number | "random") => {
+    if (!audio.current) audio.current = createGameAudio();
+    if (audio.current) startGameMusic(audio.current);
     const chosenMap = selection === "random" ? Math.floor(Math.random() * mapOptions.length) : selection;
     selectedMap.current = chosenMap; layout.current = createRouteLayout(chosenMap);
     Object.assign(game.current, { phase: "playing", district: 0, time: ROUTE_SECONDS, score: 0, rf: 0, collectedCoins: new Set<number>(), combo: 1, comboClock: 0, hearts: 3, deliveries: 0, carrying: false, target: -1, parcel: 0, boost: 100, lastCoinBoost: 0, invulnerable: 0, powerBuffCollected: false, powerTime: 0, celebrationTarget: -1, celebrationUntil: 0, message: `Explore ${mapOptions[chosenMap].name} and find the parcel!`, result: "", rank: "C" as RouteRank, rankReward: 0 });
@@ -721,7 +782,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
     requestAnimationFrame(() => root.current?.focus());
   };
   const returnToMapSelect = () => {
-    game.current.phase = "ready"; stopInput(); setPhase("ready");
+    game.current.phase = "ready"; stopGameMusic(audio.current); stopInput(); setPhase("ready");
   };
 
   useEffect(() => {
@@ -730,6 +791,15 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
     return () => preference.removeEventListener("change", update);
   }, []);
   useEffect(() => { if (paused || help || shopOpen) stopInput(); }, [paused, help, shopOpen]);
+  useEffect(() => {
+    const engine = audio.current; if (!engine || engine.context.state === "closed") return;
+    const audible = phase === "playing" && !paused && !help && !shopOpen;
+    engine.music.gain.setTargetAtTime(audible ? .34 : .025, engine.context.currentTime, .04);
+  }, [phase, paused, help, shopOpen]);
+  useEffect(() => () => {
+    const engine = audio.current; stopGameMusic(engine);
+    if (engine && engine.context.state !== "closed") void engine.context.close();
+  }, []);
   useEffect(() => {
     const node = shopPreview.current, art = sprites.current;
     if (!shopOpen || !node || !art) return;
@@ -802,10 +872,12 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
           const reward = (5 + Math.floor(Math.random() * 6)) / 100;
           session.collectedCoins.add(index); session.rf = Math.round((session.rf + reward) * 100) / 100; session.score += 5;
           session.boost = Math.min(100, session.boost + COIN_BOOST_RESTORE); session.lastCoinBoost = COIN_BOOST_RESTORE;
+          audioEvents.current.coin += 1; playAudioCue(audio.current, "coin");
           session.message = `Coin collected — +${reward.toFixed(2)} RF · +${COIN_BOOST_RESTORE} boost!`;
         });
         if (route.powerBuff && !session.powerBuffCollected && route.powerBuff.district === session.district && distance(point, route.powerBuff) < 30) {
           session.powerBuffCollected = true; session.powerTime = POWER_BUFF_DURATION; session.boost = 100; powerActive = true; session.score += 75;
+          audioEvents.current.buff += 1; playAudioCue(audio.current, "buff");
           session.message = `STAR CORE! Free boost and hazard shield for ${POWER_BUFF_DURATION} seconds!`;
         }
         if (!session.carrying && session.district === route.parcels[session.parcel].district && distance(point, route.parcels[session.parcel]) < 30) {
@@ -821,6 +893,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
           session.celebrationTarget = session.target; session.celebrationUntil = now + 1400;
           session.deliveries += 1; session.combo = session.comboClock > 0 ? Math.min(5, session.combo + 1) : 1; session.comboClock = 12;
           session.score += 100 * session.combo; session.carrying = false; session.target = -1; session.parcel = session.deliveries % route.parcels.length;
+          audioEvents.current.delivery += 1; playAudioCue(audio.current, "delivery");
           session.message = session.deliveries >= DELIVERY_GOAL ? "Perfect route!" : `Delivery complete — combo x${session.combo}!`;
         }
         for (const hazard of route.hazards) {
@@ -837,7 +910,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
           session.rank = grade.rank; session.rankReward = grade.reward;
           session.result = completed ? "ROUTE COMPLETE!" : session.hearts <= 0 ? "SCOOTER BONKED!" : "TIME'S UP!";
           if (grade.reward > 0) setClosetBalance(value => value + grade.reward);
-          stopInput(); setPhase("finished");
+          stopGameMusic(audio.current); stopInput(); setPhase("finished");
         }
       }
 
@@ -868,6 +941,8 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
       node.dataset.powerBuffSpawnRate = String(POWER_BUFF_SPAWN_RATE); node.dataset.powerBuffDuration = String(POWER_BUFF_DURATION); node.dataset.powerBuffSpawned = String(route.powerBuff !== null); node.dataset.powerActive = String(powerActive); node.dataset.powerTime = String(Math.max(0, Math.ceil(session.powerTime)));
       if (route.powerBuff && !session.powerBuffCollected) { node.dataset.powerBuffX = String(route.powerBuff.x); node.dataset.powerBuffY = String(route.powerBuff.y); node.dataset.powerBuffDistrict = String(route.powerBuff.district); } else { delete node.dataset.powerBuffX; delete node.dataset.powerBuffY; delete node.dataset.powerBuffDistrict; }
       node.dataset.headgear = equippedRef.current.headgear ?? "none"; node.dataset.scooterSkin = equippedRef.current.scooter; node.dataset.boostTrail = equippedRef.current.trail ?? "none"; node.dataset.pet = equippedRef.current.pet ?? "none";
+      node.dataset.audioReady = String(audio.current !== null); node.dataset.musicPlaying = String(audio.current?.timer !== null); node.dataset.audioCues = "rf-coin,star-core,delivery";
+      node.dataset.coinSounds = String(audioEvents.current.coin); node.dataset.buffSounds = String(audioEvents.current.buff); node.dataset.deliverySounds = String(audioEvents.current.delivery);
       node.dataset.receiverId = recipientFriendId.current.toString(); node.dataset.rf = String(session.rf); node.dataset.boost = String(Math.round(session.boost)); node.dataset.boosting = String(boosting); node.dataset.coinBoost = String(COIN_BOOST_RESTORE); node.dataset.lastCoinBoost = String(session.lastCoinBoost);
       node.dataset.layoutId = route.id; node.dataset.totalCoins = String(route.rfCoins.length); node.dataset.totalDistricts = String(mapOptions[selectedMap.current].scenes.length); node.dataset.selectedMap = String(selectedMap.current);
       node.dataset.collectedCoins = String(session.collectedCoins.size);
