@@ -24,6 +24,18 @@ await testGame("./games/sky-parcel-panic", {
     await game.getByRole("button", { name: "Shop" }).click();
     assert.equal(await game.getByRole("dialog", { name: "Courier Closet" }).isVisible(), true, "the cosmetic shop should open from the HUD");
     assert.equal(await game.getByRole("button", { name: "Buy LEAF CAP for 90 RF" }).isVisible(), true, "the former starter cap should now need to be purchased");
+    const headwearScroll = await game.locator(".interactive-grid").evaluate(element => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      overflowY: getComputedStyle(element).overflowY,
+    }));
+    assert.equal(headwearScroll.overflowY, "auto", "the cosmetic catalogue should use a vertical scrollbar");
+    assert(headwearScroll.scrollHeight > headwearScroll.clientHeight, "the headwear rows should scroll inside the closet instead of enlarging the window");
+    assert.equal(await game.getByRole("slider", { name: "Scroll cosmetic items" }).isVisible(), true, "the pixel scrollbar should remain visible beside the item grid");
+    await game.getByRole("button", { name: "Scroll cosmetics down" }).click();
+    await page.waitForTimeout(300);
+    assert(Number(await game.locator(".interactive-grid").evaluate(element => element.scrollTop)) > 0, "the scrollbar controls should reveal lower headwear rows");
+    await page.screenshot({ path: "../../outputs/sky-parcel-panic-headwear-scroll.png" });
     assert.equal(await game.getByRole("button", { name: "Select PARTY POP HAT" }).isVisible(), true, "the new party hat should appear with the headgear cosmetics");
     assert.equal(await game.getByRole("button", { name: "Select COURIER HELMET" }).isVisible(), true, "the new courier helmet should appear with the headgear cosmetics");
     await game.getByRole("button", { name: "Select PARTY POP HAT" }).click();

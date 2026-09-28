@@ -678,6 +678,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
   const root = useRef<HTMLElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const shopPreview = useRef<HTMLCanvasElement>(null);
+  const catalogueGrid = useRef<HTMLDivElement>(null);
   const sprites = useRef<GenerationSprites | null>(null);
   const recipientRoster = useRef<{ id: bigint; sprites: GenerationSprites }[]>([]);
   const recipientSprites = useRef<GenerationSprites | null>(null);
@@ -698,6 +699,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
   const [help, setHelp] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [shopCategory, setShopCategory] = useState<CosmeticCategory>("headgear");
+  const [catalogueScroll, setCatalogueScroll] = useState(0);
   const [selectedCosmetic, setSelectedCosmetic] = useState("leaf-cap");
   const [closetBalance, setClosetBalance] = useState(1400);
   const [ownedCosmetics, setOwnedCosmetics] = useState<string[]>([]);
@@ -904,6 +906,20 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
     const key = event.key.toLowerCase(); if (!movementKeys.has(key) || phase !== "playing" || help || shopOpen) return;
     event.preventDefault(); active ? keys.current.add(key) : keys.current.delete(key);
   };
+  const syncCatalogueScroll = () => {
+    const node = catalogueGrid.current; if (!node) return;
+    const maximum = Math.max(1, node.scrollHeight - node.clientHeight);
+    setCatalogueScroll(Math.round(node.scrollTop / maximum * 100));
+  };
+  const setCatalogueScrollPosition = (value: number) => {
+    const node = catalogueGrid.current; if (!node) return;
+    node.scrollTop = (node.scrollHeight - node.clientHeight) * value / 100;
+    setCatalogueScroll(value);
+  };
+  const selectShopCategory = (category: CosmeticCategory) => {
+    setShopCategory(category); setSelectedCosmetic(cosmetics.find(item => item.category === category)!.id); setCatalogueScroll(0);
+    requestAnimationFrame(() => { if (catalogueGrid.current) catalogueGrid.current.scrollTop = 0; });
+  };
   const chosenCosmetic = cosmetics.find(item => item.id === selectedCosmetic) ?? cosmetics[0];
   const isEquipped = equippedCosmetics[chosenCosmetic.category] === chosenCosmetic.id;
   const itemIsEquipped = (item: Cosmetic) => equippedCosmetics[item.category] === item.id;
@@ -1003,17 +1019,24 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
             <nav className="closet-tabs" aria-label="Cosmetic categories">
               {(["headgear", "scooter", "trail", "pet"] as CosmeticCategory[]).map(category => {
                 const label = category === "headgear" ? "HEADGEAR" : category === "scooter" ? "SCOOTER" : category === "trail" ? "BOOST TRAIL" : "PETS";
-                return <button type="button" className={shopCategory === category ? "active" : ""} aria-pressed={shopCategory === category} onClick={() => { setShopCategory(category); setSelectedCosmetic(cosmetics.find(item => item.category === category)!.id); }} key={category}>{label}</button>;
+                return <button type="button" className={shopCategory === category ? "active" : ""} aria-pressed={shopCategory === category} onClick={() => selectShopCategory(category)} key={category}>{label}</button>;
               })}
             </nav>
-            <div className="closet-grid interactive-grid">
-              {cosmetics.filter(item => item.category === shopCategory).map(item => {
-                const owned = ownedCosmetics.includes(item.id), equipped = itemIsEquipped(item);
-                return <article className={`cosmetic-card rarity-${item.rarity.toLowerCase()} ${selectedCosmetic === item.id ? "selected" : ""}`} key={item.id}>
-                  <button className="cosmetic-select" type="button" aria-label={`Select ${item.name}`} onClick={() => setSelectedCosmetic(item.id)}><img className="item-art" src={item.image} alt="" /><strong>{item.name}</strong><span>◆ {item.price} RF</span><em>{item.rarity}</em></button>
-                  <button className={equipped ? "equipped" : ""} type="button" disabled={equipped || (!owned && closetBalance < item.price)} aria-label={owned ? `Equip ${item.name}` : `Buy ${item.name} for ${item.price} RF`} onClick={() => owned ? equipCosmetic(item) : buyCosmetic(item)}>{equipped ? "EQUIPPED" : owned ? "EQUIP" : closetBalance < item.price ? "NEED RF" : "BUY"}</button>
-                </article>;
-              })}
+            <div className="cosmetic-scroll-shell">
+              <div ref={catalogueGrid} className="closet-grid interactive-grid" onScroll={syncCatalogueScroll}>
+                {cosmetics.filter(item => item.category === shopCategory).map(item => {
+                  const owned = ownedCosmetics.includes(item.id), equipped = itemIsEquipped(item);
+                  return <article className={`cosmetic-card rarity-${item.rarity.toLowerCase()} ${selectedCosmetic === item.id ? "selected" : ""}`} key={item.id}>
+                    <button className="cosmetic-select" type="button" aria-label={`Select ${item.name}`} onClick={() => setSelectedCosmetic(item.id)}><img className="item-art" src={item.image} alt="" /><strong>{item.name}</strong><span>◆ {item.price} RF</span><em>{item.rarity}</em></button>
+                    <button className={equipped ? "equipped" : ""} type="button" disabled={equipped || (!owned && closetBalance < item.price)} aria-label={owned ? `Equip ${item.name}` : `Buy ${item.name} for ${item.price} RF`} onClick={() => owned ? equipCosmetic(item) : buyCosmetic(item)}>{equipped ? "EQUIPPED" : owned ? "EQUIP" : closetBalance < item.price ? "NEED RF" : "BUY"}</button>
+                  </article>;
+                })}
+              </div>
+              <div className="closet-scroll-rail" aria-label="Cosmetic catalogue scroll controls">
+                <button type="button" aria-label="Scroll cosmetics up" onClick={() => catalogueGrid.current?.scrollBy({ top: -180, behavior: reducedMotion ? "auto" : "smooth" })}>▲</button>
+                <input type="range" min="0" max="100" step="1" value={catalogueScroll} aria-label="Scroll cosmetic items" onChange={event => setCatalogueScrollPosition(Number(event.target.value))} />
+                <button type="button" aria-label="Scroll cosmetics down" onClick={() => catalogueGrid.current?.scrollBy({ top: 180, behavior: reducedMotion ? "auto" : "smooth" })}>▼</button>
+              </div>
             </div>
             <div className="selected-readout"><span><small>SELECTED</small><strong>{chosenCosmetic.name}</strong></span><b>{ownedCosmetics.includes(chosenCosmetic.id) ? "OWNED" : `◆ ${chosenCosmetic.price} RF`}</b></div>
             <div className="closet-actions"><button type="button" disabled={isEquipped || !ownedCosmetics.includes(chosenCosmetic.id)} aria-label={`Equip selected ${chosenCosmetic.name}`} onClick={() => equipCosmetic(chosenCosmetic)}>{isEquipped ? "EQUIPPED" : "EQUIP"}</button><button type="button" onClick={() => { setShopOpen(false); requestAnimationFrame(() => root.current?.focus()); }}>BACK TO ROUTE</button></div>
