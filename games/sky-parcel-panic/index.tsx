@@ -30,6 +30,9 @@ import courierHelmetUrl from "./assets/shop/courier-helmet.png";
 import parcelPupUrl from "./assets/shop/parcel-pup.png";
 import cloudChickUrl from "./assets/shop/cloud-chick.png";
 import starSlimeUrl from "./assets/shop/star-slime.png";
+import routeV2Url from "./assets/audio/route-v2.wav";
+import routeV3Url from "./assets/audio/route-v3-chill.wav";
+import routeV4Url from "./assets/audio/route-v4-chill-happy.wav";
 
 type Point = { x: number; y: number };
 type DistrictPoint = Point & { district: number; name: string };
@@ -43,7 +46,7 @@ type CosmeticCategory = "headgear" | "scooter" | "trail" | "pet";
 type EquippedCosmetics = { headgear: string | null; scooter: string; trail: string | null; pet: string | null };
 type Cosmetic = { id: string; name: string; category: CosmeticCategory; price: number; image: string; rarity: "C" | "R" | "E" | "L" };
 type AudioCue = "coin" | "buff" | "delivery";
-type GameAudio = { context: AudioContext; master: GainNode; music: GainNode; sfx: GainNode; timer: number | null; step: number };
+type GameAudio = { context: AudioContext; master: GainNode; sfx: GainNode; track: HTMLAudioElement | null; trackIndex: number };
 
 const VIEW = { width: 480, height: 320 };
 const WORLD = { width: 960, height: 640 };
@@ -74,9 +77,11 @@ const cosmetics: Cosmetic[] = [
   { id: "parcel-pup", name: "PARCEL PUP", category: "pet", price: 260, image: parcelPupUrl, rarity: "L" },
 ];
 const movementKeys = new Set(["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", " ", "shift"]);
-const MUSIC_STEP_MS = 125;
-const musicMelody = [659, 784, 880, 784, 659, 523, 587, 659, 784, 880, 1047, 880, 784, 659, 587, 523, 659, 784, 880, 988, 880, 784, 659, 587, 523, 587, 659, 784, 659, 587, 523, 0];
-const musicBass = [131, 131, 175, 175, 147, 147, 196, 196];
+const musicTracks = [
+  { id: "v2", url: routeV2Url },
+  { id: "v3-chill", url: routeV3Url },
+  { id: "v4-chill-happy", url: routeV4Url },
+] as const;
 
 function synthTone(audio: GameAudio, target: GainNode, frequency: number, duration: number, volume: number, delay = 0, type: OscillatorType = "square", endFrequency?: number) {
   if (!frequency || audio.context.state === "closed") return;
@@ -89,31 +94,27 @@ function synthTone(audio: GameAudio, target: GainNode, frequency: number, durati
 
 function createGameAudio(): GameAudio | null {
   try {
-    const context = new AudioContext(), master = context.createGain(), music = context.createGain(), sfx = context.createGain();
-    master.gain.value = .72; music.gain.value = .34; sfx.gain.value = .78;
-    music.connect(master); sfx.connect(master); master.connect(context.destination);
-    return { context, master, music, sfx, timer: null, step: 0 };
+    const context = new AudioContext(), master = context.createGain(), sfx = context.createGain();
+    master.gain.value = .72; sfx.gain.value = .78;
+    sfx.connect(master); master.connect(context.destination);
+    return { context, master, sfx, track: null, trackIndex: -1 };
   } catch { return null; }
-}
-
-function scheduleMusicStep(audio: GameAudio) {
-  const step = audio.step++ % musicMelody.length, melody = musicMelody[step];
-  if (melody) synthTone(audio, audio.music, melody, .105, .055, 0, "square");
-  if (step % 2 === 0 && melody) synthTone(audio, audio.music, melody * 2, .055, .018, .035, "square");
-  if (step % 4 === 0) synthTone(audio, audio.music, musicBass[Math.floor(step / 4) % musicBass.length], .42, .07, 0, "triangle");
-  if (step % 8 === 6) synthTone(audio, audio.music, 1568, .035, .018, 0, "square", 1047);
 }
 
 function startGameMusic(audio: GameAudio) {
   void audio.context.resume();
-  if (audio.timer !== null) return;
-  scheduleMusicStep(audio);
-  audio.timer = window.setInterval(() => scheduleMusicStep(audio), MUSIC_STEP_MS);
+  if (audio.track) { audio.track.pause(); audio.track.currentTime = 0; }
+  let nextIndex = Math.floor(Math.random() * musicTracks.length);
+  if (musicTracks.length > 1 && nextIndex === audio.trackIndex) nextIndex = (nextIndex + 1 + Math.floor(Math.random() * (musicTracks.length - 1))) % musicTracks.length;
+  const track = new Audio(musicTracks[nextIndex].url);
+  track.loop = true; track.preload = "auto"; track.volume = .32;
+  audio.track = track; audio.trackIndex = nextIndex;
+  void track.play().catch(() => undefined);
 }
 
 function stopGameMusic(audio: GameAudio | null) {
-  if (!audio || audio.timer === null) return;
-  window.clearInterval(audio.timer); audio.timer = null; audio.step = 0;
+  if (!audio?.track) return;
+  audio.track.pause(); audio.track.currentTime = 0; audio.track = null;
 }
 
 function playAudioCue(audio: GameAudio | null, cue: AudioCue) {
@@ -794,7 +795,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
   useEffect(() => {
     const engine = audio.current; if (!engine || engine.context.state === "closed") return;
     const audible = phase === "playing" && !paused && !help && !shopOpen;
-    engine.music.gain.setTargetAtTime(audible ? .34 : .025, engine.context.currentTime, .04);
+    if (engine.track) engine.track.volume = audible ? .32 : .035;
   }, [phase, paused, help, shopOpen]);
   useEffect(() => () => {
     const engine = audio.current; stopGameMusic(engine);
@@ -941,7 +942,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
       node.dataset.powerBuffSpawnRate = String(POWER_BUFF_SPAWN_RATE); node.dataset.powerBuffDuration = String(POWER_BUFF_DURATION); node.dataset.powerBuffSpawned = String(route.powerBuff !== null); node.dataset.powerActive = String(powerActive); node.dataset.powerTime = String(Math.max(0, Math.ceil(session.powerTime)));
       if (route.powerBuff && !session.powerBuffCollected) { node.dataset.powerBuffX = String(route.powerBuff.x); node.dataset.powerBuffY = String(route.powerBuff.y); node.dataset.powerBuffDistrict = String(route.powerBuff.district); } else { delete node.dataset.powerBuffX; delete node.dataset.powerBuffY; delete node.dataset.powerBuffDistrict; }
       node.dataset.headgear = equippedRef.current.headgear ?? "none"; node.dataset.scooterSkin = equippedRef.current.scooter; node.dataset.boostTrail = equippedRef.current.trail ?? "none"; node.dataset.pet = equippedRef.current.pet ?? "none";
-      node.dataset.audioReady = String(audio.current !== null); node.dataset.musicPlaying = String(audio.current?.timer !== null); node.dataset.audioCues = "rf-coin,star-core,delivery";
+      node.dataset.audioReady = String(audio.current !== null); node.dataset.musicPlaying = String(Boolean(audio.current?.track && !audio.current.track.paused)); node.dataset.musicTrack = audio.current?.trackIndex === undefined || audio.current.trackIndex < 0 ? "none" : musicTracks[audio.current.trackIndex].id; node.dataset.musicPoolSize = String(musicTracks.length); node.dataset.audioCues = "rf-coin,star-core,delivery";
       node.dataset.coinSounds = String(audioEvents.current.coin); node.dataset.buffSounds = String(audioEvents.current.buff); node.dataset.deliverySounds = String(audioEvents.current.delivery);
       node.dataset.receiverId = recipientFriendId.current.toString(); node.dataset.rf = String(session.rf); node.dataset.boost = String(Math.round(session.boost)); node.dataset.boosting = String(boosting); node.dataset.coinBoost = String(COIN_BOOST_RESTORE); node.dataset.lastCoinBoost = String(session.lastCoinBoost);
       node.dataset.layoutId = route.id; node.dataset.totalCoins = String(route.rfCoins.length); node.dataset.totalDistricts = String(mapOptions[selectedMap.current].scenes.length); node.dataset.selectedMap = String(selectedMap.current);

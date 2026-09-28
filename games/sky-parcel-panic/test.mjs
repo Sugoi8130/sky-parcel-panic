@@ -20,6 +20,8 @@ await testGame("./games/sky-parcel-panic", {
     assert.equal(await canvas.getAttribute("data-power-buff-duration"), "12", "the Star Core should grant a 12-second power window");
     assert.equal(await canvas.getAttribute("data-audio-ready"), "true", "choosing a map should initialize the chiptune audio engine after user input");
     assert.equal(await canvas.getAttribute("data-music-playing"), "true", "the original chiptune loop should run during the route");
+    assert.equal(await canvas.getAttribute("data-music-pool-size"), "3", "each run should randomly choose from the three approved music tracks");
+    assert(["v2", "v3-chill", "v4-chill-happy"].includes(await canvas.getAttribute("data-music-track")), "the active route music should be one of the approved V2, V3, or V4 tracks");
     assert.equal(await canvas.getAttribute("data-audio-cues"), "rf-coin,star-core,delivery", "coin, Star Core, and delivery events should each expose a dedicated cue");
     assert(await canvas.getAttribute("data-parcel-x"), "the randomized route should expose its first parcel");
     assert.equal(await canvas.getAttribute("data-headgear"), "none", "a new player should start without free headgear");
