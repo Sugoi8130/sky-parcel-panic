@@ -766,6 +766,8 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
   const [equippedCosmetics, setEquippedCosmetics] = useState<EquippedCosmetics>({ headgear: null, scooter: "default", trail: null, pet: null });
   const equippedRef = useRef(equippedCosmetics); equippedRef.current = equippedCosmetics;
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [audioMuted, setAudioMuted] = useState(false);
+  const audioMutedRef = useRef(audioMuted); audioMutedRef.current = audioMuted;
   const live = useRef({ paused, help, shopOpen, reducedMotion }); live.current = { paused, help, shopOpen, reducedMotion };
 
   const stopInput = () => keys.current.clear();
@@ -795,8 +797,9 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
   useEffect(() => {
     const engine = audio.current; if (!engine || engine.context.state === "closed") return;
     const audible = phase === "playing" && !paused && !help && !shopOpen;
-    if (engine.track) engine.track.volume = audible ? .32 : .035;
-  }, [phase, paused, help, shopOpen]);
+    engine.master.gain.setTargetAtTime(audioMuted ? 0 : .72, engine.context.currentTime, .025);
+    if (engine.track) engine.track.volume = audioMuted ? 0 : audible ? .32 : .035;
+  }, [phase, paused, help, shopOpen, audioMuted]);
   useEffect(() => () => {
     const engine = audio.current; stopGameMusic(engine);
     if (engine && engine.context.state !== "closed") void engine.context.close();
@@ -942,7 +945,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
       node.dataset.powerBuffSpawnRate = String(POWER_BUFF_SPAWN_RATE); node.dataset.powerBuffDuration = String(POWER_BUFF_DURATION); node.dataset.powerBuffSpawned = String(route.powerBuff !== null); node.dataset.powerActive = String(powerActive); node.dataset.powerTime = String(Math.max(0, Math.ceil(session.powerTime)));
       if (route.powerBuff && !session.powerBuffCollected) { node.dataset.powerBuffX = String(route.powerBuff.x); node.dataset.powerBuffY = String(route.powerBuff.y); node.dataset.powerBuffDistrict = String(route.powerBuff.district); } else { delete node.dataset.powerBuffX; delete node.dataset.powerBuffY; delete node.dataset.powerBuffDistrict; }
       node.dataset.headgear = equippedRef.current.headgear ?? "none"; node.dataset.scooterSkin = equippedRef.current.scooter; node.dataset.boostTrail = equippedRef.current.trail ?? "none"; node.dataset.pet = equippedRef.current.pet ?? "none";
-      node.dataset.audioReady = String(audio.current !== null); node.dataset.musicPlaying = String(Boolean(audio.current?.track && !audio.current.track.paused)); node.dataset.musicTrack = audio.current?.trackIndex === undefined || audio.current.trackIndex < 0 ? "none" : musicTracks[audio.current.trackIndex].id; node.dataset.musicPoolSize = String(musicTracks.length); node.dataset.audioCues = "rf-coin,star-core,delivery";
+      node.dataset.audioReady = String(audio.current !== null); node.dataset.audioMuted = String(audioMutedRef.current); node.dataset.musicPlaying = String(Boolean(audio.current?.track && !audio.current.track.paused)); node.dataset.musicTrack = audio.current?.trackIndex === undefined || audio.current.trackIndex < 0 ? "none" : musicTracks[audio.current.trackIndex].id; node.dataset.musicPoolSize = String(musicTracks.length); node.dataset.audioCues = "rf-coin,star-core,delivery";
       node.dataset.coinSounds = String(audioEvents.current.coin); node.dataset.buffSounds = String(audioEvents.current.buff); node.dataset.deliverySounds = String(audioEvents.current.delivery);
       node.dataset.receiverId = recipientFriendId.current.toString(); node.dataset.rf = String(session.rf); node.dataset.boost = String(Math.round(session.boost)); node.dataset.boosting = String(boosting); node.dataset.coinBoost = String(COIN_BOOST_RESTORE); node.dataset.lastCoinBoost = String(session.lastCoinBoost);
       node.dataset.layoutId = route.id; node.dataset.totalCoins = String(route.rfCoins.length); node.dataset.totalDistricts = String(mapOptions[selectedMap.current].scenes.length); node.dataset.selectedMap = String(selectedMap.current);
@@ -1020,6 +1023,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
       <div className="brand"><small>RARE FRIEND #{friendId.toString()}</small><strong>SKY PARCEL PANIC</strong></div>
       <div className="timer" aria-label={`${formatTime(hud.time)} remaining`}><small>ROUTE TIME</small><strong>{formatTime(hud.time)}</strong></div>
       <div className="score"><span>◆ {hud.rf.toFixed(2)} RF</span><b>★ {hud.score.toString().padStart(4, "0")} · COMBO x{hud.combo}</b></div>
+      <button type="button" aria-label={audioMuted ? "Unmute audio" : "Mute audio"} aria-pressed={audioMuted} onClick={() => setAudioMuted(value => !value)}>{audioMuted ? "♫ OFF" : "♫ ON"}</button>
       <button type="button" onClick={() => setShopOpen(true)}>Shop</button>
       <button type="button" onClick={() => setHelp(true)}>How to play</button>
     </header>
