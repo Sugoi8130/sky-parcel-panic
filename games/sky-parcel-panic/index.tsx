@@ -487,21 +487,17 @@ function drawHazard(ctx: CanvasRenderingContext2D, hazard: Hazard, point: Point,
   }
 }
 
-function drawParcelPup(ctx: CanvasRenderingContext2D, x: number, y: number, facing: SpriteFacing, now: number, reduced: boolean, moving: boolean) {
-  const direction = facing === "left" ? -1 : 1;
-  const offset = facing === "up" ? { x: 24, y: 7 } : facing === "down" ? { x: -24, y: -1 } : { x: -direction * 29, y: 3 };
-  const bounce = reduced ? 0 : Math.round(Math.sin(now / (moving ? 95 : 180)) * (moving ? 3 : 2));
-  const px = x + offset.x, py = y + offset.y + bounce;
-  diamond(ctx, { x: px, y: py + 9 }, 24, 8, "rgba(41,35,57,.25)");
-  ctx.fillStyle = "#dff8ff"; ctx.fillRect(px - 8, py + 6, 17, 4); ctx.fillRect(px - 5, py + 4, 11, 7);
-  ctx.fillStyle = "#fff8dc"; ctx.fillRect(px - 7, py - 5, 15, 13); ctx.fillRect(px - 4, py - 10, 12, 10); ctx.fillRect(px - 5, py + 6, 5, 5); ctx.fillRect(px + 4, py + 6, 5, 5);
-  ctx.fillStyle = "#292640"; ctx.fillRect(px - 8, py - 6, 3, 11); ctx.fillRect(px + 7, py - 7, 4, 10); ctx.fillRect(px - 2, py - 5, 2, 3); ctx.fillRect(px + 5, py - 5, 2, 3);
-  ctx.fillStyle = "#68cbe3"; ctx.fillRect(px - 9, py - 5, 4, 8); ctx.fillRect(px + 8, py - 6, 4, 8); ctx.fillRect(px - 7, py + 9, 3, 2); ctx.fillRect(px + 7, py + 9, 3, 2);
-  ctx.fillStyle = "#ff7180"; ctx.fillRect(px - 5, py + 1, 14, 4); ctx.fillRect(px + 4, py + 4, 4, 4);
-  ctx.fillStyle = "#f0a43a"; ctx.fillRect(px - 11, py, 6, 8); ctx.fillStyle = "#fff36a"; ctx.fillRect(px - 9, py + 1, 2, 6);
-  ctx.fillStyle = "#292640"; ctx.fillRect(px + 1, py, 3, 2); ctx.fillStyle = "#ff7180"; ctx.fillRect(px + 2, py + 2, 3, 2);
-  const tailLift = reduced ? 0 : Math.floor(now / 120) % 2;
-  ctx.fillStyle = "#292640"; ctx.fillRect(px - 13, py + 2 - tailLift, 5, 3); ctx.fillStyle = "#fff8dc"; ctx.fillRect(px - 14, py - tailLift, 5, 3);
+function drawParcelPup(ctx: CanvasRenderingContext2D, x: number, y: number, now: number, reduced: boolean, moving: boolean) {
+  const bounce = reduced ? 0 : Math.round(Math.sin(now / (moving ? 105 : 190)));
+  const px = x, py = y + bounce;
+  ctx.fillStyle = "rgba(41,35,57,.28)"; ctx.fillRect(px - 7, py + 5, 15, 2);
+  ctx.fillStyle = "#fff8dc"; ctx.fillRect(px - 6, py - 3, 13, 8); ctx.fillRect(px - 3, py - 7, 9, 7); ctx.fillRect(px - 4, py + 4, 4, 3); ctx.fillRect(px + 4, py + 4, 4, 3);
+  ctx.fillStyle = "#292640"; ctx.fillRect(px - 7, py - 4, 3, 7); ctx.fillRect(px + 6, py - 4, 3, 7); ctx.fillRect(px - 1, py - 4, 2, 2); ctx.fillRect(px + 4, py - 4, 2, 2); ctx.fillRect(px + 2, py, 3, 2);
+  ctx.fillStyle = "#68cbe3"; ctx.fillRect(px - 7, py - 3, 3, 5); ctx.fillRect(px + 7, py - 3, 3, 5);
+  ctx.fillStyle = "#ff7180"; ctx.fillRect(px - 4, py + 1, 11, 3);
+  ctx.fillStyle = "#f0a43a"; ctx.fillRect(px - 8, py, 4, 5); ctx.fillStyle = "#fff36a"; ctx.fillRect(px - 7, py + 1, 1, 3);
+  const tailLift = reduced ? 0 : Math.floor(now / 130) % 2;
+  ctx.fillStyle = "#292640"; ctx.fillRect(px - 11, py + 1 - tailLift, 4, 2); ctx.fillStyle = "#fff8dc"; ctx.fillRect(px - 12, py - tailLift, 4, 2);
 }
 
 function drawFriendOnScooter(ctx: CanvasRenderingContext2D, sprites: GenerationSprites, point: Point, facing: SpriteFacing, moving: boolean, now: number, reduced: boolean, invulnerable: boolean, carrying: boolean, boosting: boolean, powered: boolean, equipped: EquippedCosmetics) {
@@ -577,7 +573,6 @@ function drawFriendOnScooter(ctx: CanvasRenderingContext2D, sprites: GenerationS
     }
     ctx.globalAlpha = 1;
   }
-  if (equipped.pet === "parcel-pup") drawParcelPup(ctx, x, y, facing, now, reduced, moving);
   diamond(ctx, { x: x + 2, y: y + 8 }, 40, 12, "rgba(41,35,57,.32)");
   ctx.fillStyle = "#342c4e"; ctx.fillRect(x - 15, y + 5, 33, 4);
   const scooterPalette = equipped.scooter === "moss-runner" ? ["#638d47", "#b9c96a"] : equipped.scooter === "tide-rider" ? ["#35a9c8", "#a8eee3"] : equipped.scooter === "nebula-glide" ? ["#7747bd", "#ef79ff"] : ["#e65245", "#f59655"];
@@ -629,6 +624,10 @@ function drawFriendOnScooter(ctx: CanvasRenderingContext2D, sprites: GenerationS
     ctx.fillStyle = "#fff36a"; ctx.fillRect(x - 11, y - 35 + hatBob, 5, 4); ctx.fillRect(x - 9, y - 37 + hatBob, 2, 8);
     ctx.fillStyle = "#79ecff"; ctx.fillRect(x + 7, y - 34 + hatBob, 10, 3); ctx.fillRect(x + 13, y - 32 + hatBob, 4, 3);
     ctx.fillStyle = "#ff7180"; ctx.fillRect(x - 10, y - 29, 3, 6); ctx.fillRect(x + 9, y - 29, 3, 6);
+  }
+  if (equipped.pet === "parcel-pup") {
+    const petLift = equipped.headgear === "party-pop-hat" ? 60 : equipped.headgear === "courier-helmet" ? 52 : equipped.headgear === "orbit-halo" ? 50 : 40;
+    drawParcelPup(ctx, x, y - petLift, now, reduced, moving);
   }
   if (carrying) {
     ctx.fillStyle = "#f09b39"; ctx.fillRect(x - 16, y - 10, 9, 8); ctx.fillStyle = "#fff4b0"; ctx.fillRect(x - 13, y - 10, 3, 8);
