@@ -7,39 +7,107 @@ await testGame("./games/sky-parcel-panic", {
   timeout: 45_000,
   screenshot: "../../outputs/sky-parcel-panic-demo.png",
   check: async ({ game, page }) => {
-    await game.getByRole("button", { name: "START DELIVERY RUN" }).click();
+    for (const name of ["Play POSTAL ROUTE", "Play FOREST CANOPY", "Play CORAL COVE", "Play COSMIC STATION", "Play Random Map"])
+      assert.equal(await game.getByRole("button", { name }).isVisible(), true, `${name} should be available on the opening screen`);
+    await page.screenshot({ path: "../../outputs/sky-parcel-panic-map-select.png" });
+    await game.getByRole("button", { name: "Play FOREST CANOPY" }).click();
     const canvas = game.getByRole("img", { name: /Sky Parcel Panic town/ });
-    const firstX = Number(await canvas.getAttribute("data-player-x"));
     await game.getByRole("region", { name: "Sky Parcel Panic game" }).focus();
+    for (let attempt = 0; attempt < 80 && !await canvas.getAttribute("data-parcel-x"); attempt++) await page.waitForTimeout(50);
+    assert(await canvas.getAttribute("data-layout-id"), "the randomized route should expose a layout id");
+    assert.equal(await canvas.getAttribute("data-route-seconds"), "300", "each route should use a five-minute countdown");
+    assert.equal(await canvas.getAttribute("data-power-buff-spawn-rate"), "0.18", "the Star Core should keep its rare 18% route spawn rate");
+    assert.equal(await canvas.getAttribute("data-power-buff-duration"), "12", "the Star Core should grant a 12-second power window");
+    assert(await canvas.getAttribute("data-parcel-x"), "the randomized route should expose its first parcel");
+    await game.getByRole("button", { name: "Shop" }).click();
+    assert.equal(await game.getByRole("dialog", { name: "Courier Closet" }).isVisible(), true, "the cosmetic shop should open from the HUD");
+    await page.screenshot({ path: "../../outputs/sky-parcel-panic-cosmetic-shop.png" });
+    await game.getByRole("button", { name: "SCOOTER", exact: true }).click();
+    await game.getByRole("button", { name: "Select MOSS RUNNER" }).click();
+    await game.getByRole("button", { name: "Buy MOSS RUNNER for 180 RF" }).click();
+    await game.getByRole("button", { name: "BOOST TRAIL", exact: true }).click();
+    await game.getByRole("button", { name: "Select FIREFLIES" }).click();
+    await game.getByRole("button", { name: "Buy FIREFLIES for 140 RF" }).click();
+    assert.equal(await game.getByLabel("100 RF available").isVisible(), true, "the demo wallet should pay for the remaining Forest Courier pieces");
+    await game.getByRole("button", { name: "BACK TO ROUTE" }).click();
+    await page.waitForTimeout(100);
+    assert.equal(await canvas.getAttribute("data-headgear"), "leaf-cap", "the purchased headgear should be equipped in game");
+    assert.equal(await canvas.getAttribute("data-scooter-skin"), "moss-runner", "the purchased scooter skin should be equipped in game");
+    assert.equal(await canvas.getAttribute("data-boost-trail"), "fireflies", "the purchased boost trail should be equipped in game");
+
     await page.keyboard.down("ArrowRight");
-    await page.keyboard.down("ArrowUp");
-    await page.waitForTimeout(500);
-    const secondY = Number(await canvas.getAttribute("data-player-y"));
-    assert(secondY < 350, "keyboard controls should move the scooter on the isometric plaza");
-    await page.waitForTimeout(1200);
+    await page.keyboard.down("Space");
+    await page.waitForTimeout(220);
+    assert.equal(await canvas.getAttribute("data-boosting"), "true", "holding boost should activate the scooter boost effect");
+    await page.screenshot({ path: "../../outputs/sky-parcel-panic-boost-effect.png" });
+    await page.keyboard.up("Space");
     await page.keyboard.up("ArrowRight");
-    await page.keyboard.up("ArrowUp");
+
+    const attributeNumber = async name => Number(await canvas.getAttribute(`data-${name}`));
+    const releaseMovement = async () => {
+      for (const key of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) await page.keyboard.up(key);
+    };
+    const driveTo = async (prefix, label, stopWhen = async () => false) => {
+      for (let attempt = 0; attempt < 180; attempt++) {
+        if (await stopWhen()) { await releaseMovement(); return; }
+        const [x, y, targetX, targetY] = await Promise.all([
+          attributeNumber("player-x"), attributeNumber("player-y"),
+          attributeNumber(`${prefix}-x`), attributeNumber(`${prefix}-y`),
+        ]);
+        assert([x, y, targetX, targetY].every(Number.isFinite), `${label} should expose a valid randomized target`);
+        const dx = targetX - x, dy = targetY - y;
+        if (Math.hypot(dx, dy) < 18) { await page.waitForTimeout(120); await releaseMovement(); return; }
+        const screenX = dx - dy, screenY = dx + dy;
+        const pressed = [];
+        if (screenX > 6) pressed.push("ArrowRight"); else if (screenX < -6) pressed.push("ArrowLeft");
+        if (screenY > 6) pressed.push("ArrowDown"); else if (screenY < -6) pressed.push("ArrowUp");
+        for (const key of pressed) await page.keyboard.down(key);
+        await page.waitForTimeout(75);
+        for (const key of pressed) await page.keyboard.up(key);
+      }
+      await releaseMovement();
+      assert.fail(`scooter should reach the randomized ${label}`);
+    };
+
+    assert.equal(await canvas.getAttribute("data-total-coins"), "30", "each selected world should scatter 10 RF coins across each of its three scenes");
+    assert.equal(await canvas.getAttribute("data-total-districts"), "3", "each playable world should contain three connected scenes");
+    assert.equal(await canvas.getAttribute("data-selected-map"), "1", "the selected Forest map should remain active for the whole run");
+    assert(Number(await canvas.getAttribute("data-visible-coins")) >= 8, "the current map should contain many RF coins");
+    const visibleHazards = Number(await canvas.getAttribute("data-visible-hazards"));
+    assert(visibleHazards >= 5 && visibleHazards <= 8, "each scene should contain between 5 and 8 randomized hazards");
+    assert(Number(await canvas.getAttribute("data-hazard-min-range")) >= 80, "every hazard should use the wider movement range");
+    assert(Number(await canvas.getAttribute("data-hazard-max-range")) <= 135, "hazard movement should remain within its designed maximum range");
+    assert(Number(await canvas.getAttribute("data-coin-spread-x")) >= 220, "RF coins should span most of the map width");
+    assert(Number(await canvas.getAttribute("data-coin-spread-y")) >= 60, "RF coins should span both the near and far halves of the map");
+    assert(Number(await canvas.getAttribute("data-hazard-spread-x")) >= 160, "hazards should be split across distant map regions");
+
+    const firstX = await attributeNumber("player-x");
+    await driveTo("coin", "nearest RF coin", async () => Number(await canvas.getAttribute("data-collected-coins")) >= 1);
+    assert(Number(await canvas.getAttribute("data-collected-coins")) >= 1, "driving over a randomized RF coin should collect it");
+    assert.equal(await canvas.getAttribute("data-coin-boost"), "18", "each RF coin should restore a fixed 18 boost");
+    assert.equal(await canvas.getAttribute("data-last-coin-boost"), "18", "collecting a coin should apply its boost restoration");
+    const collectedRf = Number(await canvas.getAttribute("data-rf"));
+    assert(collectedRf >= 0.05, "each spinning coin should award at least 0.05 route RF");
+    assert.notEqual(await attributeNumber("player-x"), firstX, "keyboard controls should move the scooter on the isometric plaza");
+
+    await driveTo("parcel", "parcel pickup", async () => Boolean(await canvas.getAttribute("data-target-x")));
     await game.getByText("▣ PARCEL ON BOARD", { exact: true }).waitFor();
     const receiverId = await canvas.getAttribute("data-receiver-id");
     assert(receiverId && /^\d+$/.test(receiverId), "receiver should be a verified Friend supplied by the wallet runtime");
-    const collectedRf = Number(await canvas.getAttribute("data-rf"));
-    assert(collectedRf >= 0.05 && collectedRf <= 0.10, "a spinning coin should award between 0.05 and 0.10 route RF");
-    assert.equal(await game.getByText(/RUNNING · POSTAL PLAZA/).isVisible(), true);
+    assert.equal(await game.getByText(/RUNNING · FOREST CANOPY · ROOTWOOD CLEARING/).isVisible(), true);
     await page.screenshot({ path: "../../outputs/sky-parcel-panic-navigation-review.png" });
 
+    await driveTo("gate", "scene exit");
     await page.keyboard.down("ArrowRight");
     for (let attempt = 0; attempt < 65 && Number(await canvas.getAttribute("data-district")) === 0; attempt++) await page.waitForTimeout(100);
-    assert.equal(await canvas.getAttribute("data-district"), "1", "crossing the east edge should enter Bloom Market");
+    await page.keyboard.up("ArrowRight");
+    assert.equal(await canvas.getAttribute("data-district"), "1", "crossing the east edge should enter Mooncap Grove");
+    await driveTo("target", "delivery stop", async () => await game.locator(".delivery-pips").getAttribute("aria-label") === "1 of 5 deliveries");
     await page.waitForTimeout(250);
     await page.screenshot({ path: "../../outputs/sky-parcel-panic-ingame-review.png" });
-    await page.keyboard.up("ArrowRight");
-    await page.keyboard.down("ArrowRight");
-    for (let attempt = 0; attempt < 36 && Number(await canvas.getAttribute("data-player-y")) > 390; attempt++) await page.waitForTimeout(100);
-    await page.keyboard.up("ArrowRight");
-    await page.waitForTimeout(250);
     const deliveryLabel = await game.locator(".delivery-pips").getAttribute("aria-label");
     const endX = await canvas.getAttribute("data-player-x"), endY = await canvas.getAttribute("data-player-y");
-    assert.equal(deliveryLabel, "1 of 5 deliveries", `delivery should complete at Bloom Market; player ended at ${endX},${endY}`);
+    assert.equal(deliveryLabel, "1 of 5 deliveries", `delivery should complete in Mooncap Grove; player ended at ${endX},${endY}`);
     await page.screenshot({ path: "../../outputs/sky-parcel-panic-delivery-celebration.png" });
 
     await game.getByRole("button", { name: "How to play" }).click();
