@@ -25,6 +25,9 @@ import nebulaGlideUrl from "./assets/shop/nebula-glide.png";
 import firefliesUrl from "./assets/shop/fireflies.png";
 import bubblePopUrl from "./assets/shop/bubble-pop.png";
 import stardustUrl from "./assets/shop/stardust.png";
+import partyPopHatUrl from "./assets/shop/party-pop-hat.png";
+import courierHelmetUrl from "./assets/shop/courier-helmet.png";
+import parcelPupUrl from "./assets/shop/parcel-pup.png";
 
 type Point = { x: number; y: number };
 type DistrictPoint = Point & { district: number; name: string };
@@ -34,8 +37,8 @@ type RouteLayout = { id: string; parcels: DistrictPoint[]; deliveryStops: Distri
 type Phase = "ready" | "playing" | "finished";
 type RouteRank = "C" | "B" | "A" | "S";
 type Hud = { time: number; score: number; rf: number; combo: number; hearts: number; deliveries: number; carrying: boolean; boost: number; powerTime: number; message: string };
-type CosmeticCategory = "headgear" | "scooter" | "trail";
-type EquippedCosmetics = { headgear: string | null; scooter: string; trail: string | null };
+type CosmeticCategory = "headgear" | "scooter" | "trail" | "pet";
+type EquippedCosmetics = { headgear: string | null; scooter: string; trail: string | null; pet: string | null };
 type Cosmetic = { id: string; name: string; category: CosmeticCategory; price: number; image: string; rarity: "C" | "R" | "E" | "L" };
 
 const VIEW = { width: 480, height: 320 };
@@ -54,12 +57,15 @@ const cosmetics: Cosmetic[] = [
   { id: "leaf-cap", name: "LEAF CAP", category: "headgear", price: 90, image: leafCapUrl, rarity: "C" },
   { id: "coral-goggles", name: "CORAL GOGGLES", category: "headgear", price: 120, image: coralGogglesUrl, rarity: "R" },
   { id: "orbit-halo", name: "ORBIT HALO", category: "headgear", price: 160, image: orbitHaloUrl, rarity: "E" },
+  { id: "party-pop-hat", name: "PARTY POP HAT", category: "headgear", price: 130, image: partyPopHatUrl, rarity: "R" },
+  { id: "courier-helmet", name: "COURIER HELMET", category: "headgear", price: 190, image: courierHelmetUrl, rarity: "E" },
   { id: "moss-runner", name: "MOSS RUNNER", category: "scooter", price: 180, image: mossRunnerUrl, rarity: "R" },
   { id: "tide-rider", name: "TIDE RIDER", category: "scooter", price: 220, image: tideRiderUrl, rarity: "E" },
   { id: "nebula-glide", name: "NEBULA GLIDE", category: "scooter", price: 280, image: nebulaGlideUrl, rarity: "L" },
   { id: "fireflies", name: "FIREFLIES", category: "trail", price: 140, image: firefliesUrl, rarity: "C" },
   { id: "bubble-pop", name: "BUBBLE POP", category: "trail", price: 160, image: bubblePopUrl, rarity: "R" },
   { id: "stardust", name: "STARDUST", category: "trail", price: 240, image: stardustUrl, rarity: "E" },
+  { id: "parcel-pup", name: "PARCEL PUP", category: "pet", price: 260, image: parcelPupUrl, rarity: "L" },
 ];
 const movementKeys = new Set(["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", " ", "shift"]);
 
@@ -481,6 +487,23 @@ function drawHazard(ctx: CanvasRenderingContext2D, hazard: Hazard, point: Point,
   }
 }
 
+function drawParcelPup(ctx: CanvasRenderingContext2D, x: number, y: number, facing: SpriteFacing, now: number, reduced: boolean, moving: boolean) {
+  const direction = facing === "left" ? -1 : 1;
+  const offset = facing === "up" ? { x: 24, y: 7 } : facing === "down" ? { x: -24, y: -1 } : { x: -direction * 29, y: 3 };
+  const bounce = reduced ? 0 : Math.round(Math.sin(now / (moving ? 95 : 180)) * (moving ? 3 : 2));
+  const px = x + offset.x, py = y + offset.y + bounce;
+  diamond(ctx, { x: px, y: py + 9 }, 24, 8, "rgba(41,35,57,.25)");
+  ctx.fillStyle = "#dff8ff"; ctx.fillRect(px - 8, py + 6, 17, 4); ctx.fillRect(px - 5, py + 4, 11, 7);
+  ctx.fillStyle = "#fff8dc"; ctx.fillRect(px - 7, py - 5, 15, 13); ctx.fillRect(px - 4, py - 10, 12, 10); ctx.fillRect(px - 5, py + 6, 5, 5); ctx.fillRect(px + 4, py + 6, 5, 5);
+  ctx.fillStyle = "#292640"; ctx.fillRect(px - 8, py - 6, 3, 11); ctx.fillRect(px + 7, py - 7, 4, 10); ctx.fillRect(px - 2, py - 5, 2, 3); ctx.fillRect(px + 5, py - 5, 2, 3);
+  ctx.fillStyle = "#68cbe3"; ctx.fillRect(px - 9, py - 5, 4, 8); ctx.fillRect(px + 8, py - 6, 4, 8); ctx.fillRect(px - 7, py + 9, 3, 2); ctx.fillRect(px + 7, py + 9, 3, 2);
+  ctx.fillStyle = "#ff7180"; ctx.fillRect(px - 5, py + 1, 14, 4); ctx.fillRect(px + 4, py + 4, 4, 4);
+  ctx.fillStyle = "#f0a43a"; ctx.fillRect(px - 11, py, 6, 8); ctx.fillStyle = "#fff36a"; ctx.fillRect(px - 9, py + 1, 2, 6);
+  ctx.fillStyle = "#292640"; ctx.fillRect(px + 1, py, 3, 2); ctx.fillStyle = "#ff7180"; ctx.fillRect(px + 2, py + 2, 3, 2);
+  const tailLift = reduced ? 0 : Math.floor(now / 120) % 2;
+  ctx.fillStyle = "#292640"; ctx.fillRect(px - 13, py + 2 - tailLift, 5, 3); ctx.fillStyle = "#fff8dc"; ctx.fillRect(px - 14, py - tailLift, 5, 3);
+}
+
 function drawFriendOnScooter(ctx: CanvasRenderingContext2D, sprites: GenerationSprites, point: Point, facing: SpriteFacing, moving: boolean, now: number, reduced: boolean, invulnerable: boolean, carrying: boolean, boosting: boolean, powered: boolean, equipped: EquippedCosmetics) {
   if (invulnerable && Math.floor(now / 80) % 2) return;
   const side: "left" | "right" = facing === "left" ? "left" : "right";
@@ -554,6 +577,7 @@ function drawFriendOnScooter(ctx: CanvasRenderingContext2D, sprites: GenerationS
     }
     ctx.globalAlpha = 1;
   }
+  if (equipped.pet === "parcel-pup") drawParcelPup(ctx, x, y, facing, now, reduced, moving);
   diamond(ctx, { x: x + 2, y: y + 8 }, 40, 12, "rgba(41,35,57,.32)");
   ctx.fillStyle = "#342c4e"; ctx.fillRect(x - 15, y + 5, 33, 4);
   const scooterPalette = equipped.scooter === "moss-runner" ? ["#638d47", "#b9c96a"] : equipped.scooter === "tide-rider" ? ["#35a9c8", "#a8eee3"] : equipped.scooter === "nebula-glide" ? ["#7747bd", "#ef79ff"] : ["#e65245", "#f59655"];
@@ -592,6 +616,19 @@ function drawFriendOnScooter(ctx: CanvasRenderingContext2D, sprites: GenerationS
     const orbit = reduced ? 0 : Math.round(Math.sin(now / 190) * 7);
     ctx.fillStyle = "#f4a83b"; ctx.fillRect(x - 12, y - 39 + hatBob, 24, 2); ctx.fillStyle = "#fff36a"; ctx.fillRect(x - 9, y - 41 + hatBob, 18, 2); ctx.fillRect(x - 15, y - 38 + hatBob, 5, 2); ctx.fillRect(x + 10, y - 38 + hatBob, 5, 2);
     ctx.fillStyle = "#79ecff"; ctx.fillRect(x + orbit - 1, y - 44 + hatBob, 3, 5); ctx.fillRect(x + orbit - 2, y - 43 + hatBob, 5, 3); ctx.fillStyle = "#fff8dc"; ctx.fillRect(x + orbit, y - 42 + hatBob, 1, 1);
+  } else if (equipped.headgear === "party-pop-hat") {
+    ctx.fillStyle = "#292640"; ctx.fillRect(x - 12, y - 31, 24, 3);
+    ctx.fillStyle = "#ff6375"; ctx.fillRect(x - 8, y - 35 + hatBob, 16, 4); ctx.fillRect(x - 6, y - 39 + hatBob, 12, 4); ctx.fillRect(x - 4, y - 43 + hatBob, 8, 4); ctx.fillRect(x - 2, y - 47 + hatBob, 4, 4);
+    ctx.fillStyle = "#fff36a"; ctx.fillRect(x - 6, y - 39 + hatBob, 5, 4); ctx.fillRect(x - 2, y - 47 + hatBob, 4, 3); ctx.fillRect(x + 3, y - 35 + hatBob, 5, 4);
+    ctx.fillStyle = "#79ecff"; ctx.fillRect(x - 3, y - 51 + hatBob, 6, 5); ctx.fillStyle = "#fff8dc"; ctx.fillRect(x - 1, y - 50 + hatBob, 2, 2);
+    if (!reduced) { const flicker = Math.floor(now / 140) % 2; ctx.fillStyle = flicker ? "#79ecff" : "#fff36a"; ctx.fillRect(x - 15, y - 43, 3, 3); ctx.fillRect(x + 13, y - 39, 3, 3); }
+  } else if (equipped.headgear === "courier-helmet") {
+    ctx.fillStyle = "#292640"; ctx.fillRect(x - 14, y - 38 + hatBob, 28, 10); ctx.fillRect(x - 11, y - 43 + hatBob, 22, 7);
+    ctx.fillStyle = "#2f78b8"; ctx.fillRect(x - 12, y - 37 + hatBob, 24, 8); ctx.fillRect(x - 9, y - 41 + hatBob, 18, 6);
+    ctx.fillStyle = "#fff8dc"; ctx.fillRect(x - 2, y - 42 + hatBob, 5, 12);
+    ctx.fillStyle = "#fff36a"; ctx.fillRect(x - 11, y - 35 + hatBob, 5, 4); ctx.fillRect(x - 9, y - 37 + hatBob, 2, 8);
+    ctx.fillStyle = "#79ecff"; ctx.fillRect(x + 7, y - 34 + hatBob, 10, 3); ctx.fillRect(x + 13, y - 32 + hatBob, 4, 3);
+    ctx.fillStyle = "#ff7180"; ctx.fillRect(x - 10, y - 29, 3, 6); ctx.fillRect(x + 9, y - 29, 3, 6);
   }
   if (carrying) {
     ctx.fillStyle = "#f09b39"; ctx.fillRect(x - 16, y - 10, 9, 8); ctx.fillStyle = "#fff4b0"; ctx.fillRect(x - 13, y - 10, 3, 8);
@@ -631,9 +668,9 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
   const [shopOpen, setShopOpen] = useState(false);
   const [shopCategory, setShopCategory] = useState<CosmeticCategory>("headgear");
   const [selectedCosmetic, setSelectedCosmetic] = useState("leaf-cap");
-  const [closetBalance, setClosetBalance] = useState(420);
+  const [closetBalance, setClosetBalance] = useState(900);
   const [ownedCosmetics, setOwnedCosmetics] = useState<string[]>(["leaf-cap"]);
-  const [equippedCosmetics, setEquippedCosmetics] = useState<EquippedCosmetics>({ headgear: "leaf-cap", scooter: "default", trail: null });
+  const [equippedCosmetics, setEquippedCosmetics] = useState<EquippedCosmetics>({ headgear: "leaf-cap", scooter: "default", trail: null, pet: null });
   const equippedRef = useRef(equippedCosmetics); equippedRef.current = equippedCosmetics;
   const [reducedMotion, setReducedMotion] = useState(false);
   const live = useRef({ paused, help, shopOpen, reducedMotion }); live.current = { paused, help, shopOpen, reducedMotion };
@@ -797,7 +834,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
       node.dataset.routeSeconds = String(ROUTE_SECONDS); node.dataset.rank = session.rank; node.dataset.rankReward = String(session.rankReward);
       node.dataset.powerBuffSpawnRate = String(POWER_BUFF_SPAWN_RATE); node.dataset.powerBuffDuration = String(POWER_BUFF_DURATION); node.dataset.powerBuffSpawned = String(route.powerBuff !== null); node.dataset.powerActive = String(powerActive); node.dataset.powerTime = String(Math.max(0, Math.ceil(session.powerTime)));
       if (route.powerBuff && !session.powerBuffCollected) { node.dataset.powerBuffX = String(route.powerBuff.x); node.dataset.powerBuffY = String(route.powerBuff.y); node.dataset.powerBuffDistrict = String(route.powerBuff.district); } else { delete node.dataset.powerBuffX; delete node.dataset.powerBuffY; delete node.dataset.powerBuffDistrict; }
-      node.dataset.headgear = equippedRef.current.headgear ?? "none"; node.dataset.scooterSkin = equippedRef.current.scooter; node.dataset.boostTrail = equippedRef.current.trail ?? "none";
+      node.dataset.headgear = equippedRef.current.headgear ?? "none"; node.dataset.scooterSkin = equippedRef.current.scooter; node.dataset.boostTrail = equippedRef.current.trail ?? "none"; node.dataset.pet = equippedRef.current.pet ?? "none";
       node.dataset.receiverId = recipientFriendId.current.toString(); node.dataset.rf = String(session.rf); node.dataset.boost = String(Math.round(session.boost)); node.dataset.boosting = String(boosting); node.dataset.coinBoost = String(COIN_BOOST_RESTORE); node.dataset.lastCoinBoost = String(session.lastCoinBoost);
       node.dataset.layoutId = route.id; node.dataset.totalCoins = String(route.rfCoins.length); node.dataset.totalDistricts = String(mapOptions[selectedMap.current].scenes.length); node.dataset.selectedMap = String(selectedMap.current);
       node.dataset.collectedCoins = String(session.collectedCoins.size);
@@ -837,8 +874,8 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
     event.preventDefault(); active ? keys.current.add(key) : keys.current.delete(key);
   };
   const chosenCosmetic = cosmetics.find(item => item.id === selectedCosmetic) ?? cosmetics[0];
-  const isEquipped = chosenCosmetic.category === "headgear" ? equippedCosmetics.headgear === chosenCosmetic.id : chosenCosmetic.category === "scooter" ? equippedCosmetics.scooter === chosenCosmetic.id : equippedCosmetics.trail === chosenCosmetic.id;
-  const itemIsEquipped = (item: Cosmetic) => item.category === "headgear" ? equippedCosmetics.headgear === item.id : item.category === "scooter" ? equippedCosmetics.scooter === item.id : equippedCosmetics.trail === item.id;
+  const isEquipped = equippedCosmetics[chosenCosmetic.category] === chosenCosmetic.id;
+  const itemIsEquipped = (item: Cosmetic) => equippedCosmetics[item.category] === item.id;
   const equipCosmetic = (item: Cosmetic) => setEquippedCosmetics(current => ({ ...current, [item.category]: item.id }));
   const buyCosmetic = (item: Cosmetic) => {
     if (ownedCosmetics.includes(item.id) || closetBalance < item.price) return;
@@ -925,7 +962,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
             <div className="closet-preview" aria-label="Live equipped outfit preview" style={{ backgroundImage: `linear-gradient(rgba(30,35,52,.08),rgba(30,35,52,.08)),url(${activeWorld.scenes[district].image})` }}><canvas ref={shopPreview} width={VIEW.width} height={VIEW.height} aria-hidden="true" /></div>
             <div className="equipped-title"><i />LIVE OUTFIT<i /></div>
             <div className="equipped-summary">
-              {(["headgear", "scooter", "trail"] as CosmeticCategory[]).map(category => {
+              {(["headgear", "scooter", "trail", "pet"] as CosmeticCategory[]).map(category => {
                 const id = equippedCosmetics[category], item = cosmetics.find(entry => entry.id === id);
                 return <div key={category}>{item ? <img className="item-art" src={item.image} alt="" /> : <span className="item-art item-art-empty" />}<small>{category === "trail" ? "BOOST TRAIL" : category.toUpperCase()}</small><b>{item?.name ?? (category === "scooter" ? "CLASSIC" : "NONE")}</b></div>;
               })}
@@ -933,8 +970,8 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
           </div>
           <div className="closet-catalogue">
             <nav className="closet-tabs" aria-label="Cosmetic categories">
-              {(["headgear", "scooter", "trail"] as CosmeticCategory[]).map(category => {
-                const label = category === "headgear" ? "HEADGEAR" : category === "scooter" ? "SCOOTER" : "BOOST TRAIL";
+              {(["headgear", "scooter", "trail", "pet"] as CosmeticCategory[]).map(category => {
+                const label = category === "headgear" ? "HEADGEAR" : category === "scooter" ? "SCOOTER" : category === "trail" ? "BOOST TRAIL" : "PETS";
                 return <button type="button" className={shopCategory === category ? "active" : ""} aria-pressed={shopCategory === category} onClick={() => { setShopCategory(category); setSelectedCosmetic(cosmetics.find(item => item.category === category)!.id); }} key={category}>{label}</button>;
               })}
             </nav>

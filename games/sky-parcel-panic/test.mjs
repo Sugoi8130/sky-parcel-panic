@@ -21,6 +21,16 @@ await testGame("./games/sky-parcel-panic", {
     assert(await canvas.getAttribute("data-parcel-x"), "the randomized route should expose its first parcel");
     await game.getByRole("button", { name: "Shop" }).click();
     assert.equal(await game.getByRole("dialog", { name: "Courier Closet" }).isVisible(), true, "the cosmetic shop should open from the HUD");
+    assert.equal(await game.getByRole("button", { name: "Select PARTY POP HAT" }).isVisible(), true, "the new party hat should appear with the headgear cosmetics");
+    assert.equal(await game.getByRole("button", { name: "Select COURIER HELMET" }).isVisible(), true, "the new courier helmet should appear with the headgear cosmetics");
+    await game.getByRole("button", { name: "Select PARTY POP HAT" }).click();
+    await game.getByRole("button", { name: "Buy PARTY POP HAT for 130 RF" }).click();
+    await game.getByRole("button", { name: "Select COURIER HELMET" }).click();
+    await game.getByRole("button", { name: "Buy COURIER HELMET for 190 RF" }).click();
+    await game.getByRole("button", { name: "PETS", exact: true }).click();
+    assert.equal(await game.getByRole("button", { name: "Select PARCEL PUP" }).isVisible(), true, "Parcel Pup should have its own pet category");
+    await game.getByRole("button", { name: "Select PARCEL PUP" }).click();
+    await game.getByRole("button", { name: "Buy PARCEL PUP for 260 RF" }).click();
     await page.screenshot({ path: "../../outputs/sky-parcel-panic-cosmetic-shop.png" });
     await game.getByRole("button", { name: "SCOOTER", exact: true }).click();
     await game.getByRole("button", { name: "Select MOSS RUNNER" }).click();
@@ -28,12 +38,13 @@ await testGame("./games/sky-parcel-panic", {
     await game.getByRole("button", { name: "BOOST TRAIL", exact: true }).click();
     await game.getByRole("button", { name: "Select FIREFLIES" }).click();
     await game.getByRole("button", { name: "Buy FIREFLIES for 140 RF" }).click();
-    assert.equal(await game.getByLabel("100 RF available").isVisible(), true, "the demo wallet should pay for the remaining Forest Courier pieces");
+    assert.equal(await game.getByLabel("0 RF available").isVisible(), true, "the demo wallet should pay for all three new cosmetics and the remaining Forest Courier pieces");
     await game.getByRole("button", { name: "BACK TO ROUTE" }).click();
     await page.waitForTimeout(100);
-    assert.equal(await canvas.getAttribute("data-headgear"), "leaf-cap", "the purchased headgear should be equipped in game");
+    assert.equal(await canvas.getAttribute("data-headgear"), "courier-helmet", "the purchased courier helmet should be equipped in game");
     assert.equal(await canvas.getAttribute("data-scooter-skin"), "moss-runner", "the purchased scooter skin should be equipped in game");
     assert.equal(await canvas.getAttribute("data-boost-trail"), "fireflies", "the purchased boost trail should be equipped in game");
+    assert.equal(await canvas.getAttribute("data-pet"), "parcel-pup", "the purchased Parcel Pup should follow the courier in game");
 
     await page.keyboard.down("ArrowRight");
     await page.keyboard.down("Space");
