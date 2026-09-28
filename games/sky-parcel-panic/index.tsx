@@ -28,6 +28,8 @@ import stardustUrl from "./assets/shop/stardust.png";
 import partyPopHatUrl from "./assets/shop/party-pop-hat.png";
 import courierHelmetUrl from "./assets/shop/courier-helmet.png";
 import parcelPupUrl from "./assets/shop/parcel-pup.png";
+import cloudChickUrl from "./assets/shop/cloud-chick.png";
+import starSlimeUrl from "./assets/shop/star-slime.png";
 
 type Point = { x: number; y: number };
 type DistrictPoint = Point & { district: number; name: string };
@@ -65,6 +67,8 @@ const cosmetics: Cosmetic[] = [
   { id: "fireflies", name: "FIREFLIES", category: "trail", price: 140, image: firefliesUrl, rarity: "C" },
   { id: "bubble-pop", name: "BUBBLE POP", category: "trail", price: 160, image: bubblePopUrl, rarity: "R" },
   { id: "stardust", name: "STARDUST", category: "trail", price: 240, image: stardustUrl, rarity: "E" },
+  { id: "cloud-chick", name: "CLOUD CHICK", category: "pet", price: 190, image: cloudChickUrl, rarity: "R" },
+  { id: "star-slime", name: "STAR SLIME", category: "pet", price: 230, image: starSlimeUrl, rarity: "E" },
   { id: "parcel-pup", name: "PARCEL PUP", category: "pet", price: 260, image: parcelPupUrl, rarity: "L" },
 ];
 const movementKeys = new Set(["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", " ", "shift"]);
@@ -500,6 +504,32 @@ function drawParcelPup(ctx: CanvasRenderingContext2D, x: number, y: number, now:
   ctx.fillStyle = "#292640"; ctx.fillRect(px - 11, py + 1 - tailLift, 4, 2); ctx.fillStyle = "#fff8dc"; ctx.fillRect(px - 12, py - tailLift, 4, 2);
 }
 
+function drawCloudChick(ctx: CanvasRenderingContext2D, x: number, y: number, now: number, reduced: boolean, moving: boolean) {
+  const bounce = reduced ? 0 : Math.round(Math.sin(now / (moving ? 90 : 175)));
+  const flap = reduced ? 0 : Math.floor(now / 95) % 2;
+  const py = y + bounce;
+  ctx.fillStyle = "rgba(41,35,57,.28)"; ctx.fillRect(x - 6, py + 5, 13, 2);
+  ctx.fillStyle = "#292640"; ctx.fillRect(x - 6, py - 5, 13, 10); ctx.fillRect(x - 9, py - 2 - flap, 4, 6); ctx.fillRect(x + 6, py - 2 - flap, 4, 6);
+  ctx.fillStyle = "#fff36a"; ctx.fillRect(x - 5, py - 4, 11, 9); ctx.fillStyle = "#68cbe3"; ctx.fillRect(x - 8, py - 1 - flap, 3, 4); ctx.fillRect(x + 6, py - 1 - flap, 3, 4);
+  ctx.fillStyle = "#fff8dc"; ctx.fillRect(x - 3, py - 7, 7, 3); ctx.fillRect(x - 5, py - 6, 11, 2);
+  ctx.fillStyle = "#292640"; ctx.fillRect(x - 2, py - 2, 2, 2); ctx.fillRect(x + 3, py - 2, 2, 2);
+  ctx.fillStyle = "#f59655"; ctx.fillRect(x, py, 4, 2); ctx.fillRect(x - 4, py + 5, 3, 2); ctx.fillRect(x + 4, py + 5, 3, 2);
+  ctx.fillStyle = "#ff7180"; ctx.fillRect(x + 5, py + 1, 4, 4); ctx.fillStyle = "#fff8dc"; ctx.fillRect(x + 6, py + 2, 2, 1);
+}
+
+function drawStarSlime(ctx: CanvasRenderingContext2D, x: number, y: number, now: number, reduced: boolean, moving: boolean) {
+  const squish = reduced ? 0 : Math.floor(now / (moving ? 105 : 220)) % 2;
+  const py = y + squish;
+  ctx.fillStyle = "rgba(41,35,57,.28)"; ctx.fillRect(x - 7, py + 5, 15, 2);
+  ctx.fillStyle = "#292640"; ctx.fillRect(x - 7, py - 4 + squish, 15, 9 - squish); ctx.fillRect(x - 4, py - 7 + squish, 9, 4);
+  ctx.fillStyle = "#9a4fd0"; ctx.fillRect(x - 6, py - 3 + squish, 13, 7 - squish); ctx.fillRect(x - 3, py - 6 + squish, 7, 4);
+  ctx.fillStyle = "#ef79ff"; ctx.fillRect(x - 4, py - 3 + squish, 4, 2); ctx.fillRect(x - 5, py + 3, 3, 2); ctx.fillRect(x + 4, py + 3, 3, 2);
+  ctx.fillStyle = "#79ecff"; ctx.fillRect(x - 2, py - 1 + squish, 2, 2); ctx.fillRect(x + 3, py - 1 + squish, 2, 2); ctx.fillStyle = "#292640"; ctx.fillRect(x, py + 1, 3, 1);
+  ctx.fillStyle = "#9a4fd0"; ctx.fillRect(x + 2, py - 10 + squish, 2, 5); ctx.fillRect(x + 3, py - 11 + squish, 3, 2);
+  ctx.fillStyle = "#fff36a"; ctx.fillRect(x + 5, py - 13 + squish, 2, 6); ctx.fillRect(x + 3, py - 11 + squish, 6, 2); ctx.fillStyle = "#fff8dc"; ctx.fillRect(x + 5, py - 11 + squish, 2, 2);
+  ctx.fillStyle = "#68cbe3"; ctx.fillRect(x - 8, py, 4, 4); ctx.fillStyle = "#fff8dc"; ctx.fillRect(x - 7, py + 1, 2, 1);
+}
+
 function drawFriendOnScooter(ctx: CanvasRenderingContext2D, sprites: GenerationSprites, point: Point, facing: SpriteFacing, moving: boolean, now: number, reduced: boolean, invulnerable: boolean, carrying: boolean, boosting: boolean, powered: boolean, equipped: EquippedCosmetics) {
   if (invulnerable && Math.floor(now / 80) % 2) return;
   const side: "left" | "right" = facing === "left" ? "left" : "right";
@@ -625,9 +655,11 @@ function drawFriendOnScooter(ctx: CanvasRenderingContext2D, sprites: GenerationS
     ctx.fillStyle = "#79ecff"; ctx.fillRect(x + 7, y - 34 + hatBob, 10, 3); ctx.fillRect(x + 13, y - 32 + hatBob, 4, 3);
     ctx.fillStyle = "#ff7180"; ctx.fillRect(x - 10, y - 29, 3, 6); ctx.fillRect(x + 9, y - 29, 3, 6);
   }
-  if (equipped.pet === "parcel-pup") {
+  if (equipped.pet) {
     const petLift = equipped.headgear === "party-pop-hat" ? 60 : equipped.headgear === "courier-helmet" ? 52 : equipped.headgear === "orbit-halo" ? 50 : 40;
-    drawParcelPup(ctx, x, y - petLift, now, reduced, moving);
+    if (equipped.pet === "parcel-pup") drawParcelPup(ctx, x, y - petLift, now, reduced, moving);
+    else if (equipped.pet === "cloud-chick") drawCloudChick(ctx, x, y - petLift, now, reduced, moving);
+    else if (equipped.pet === "star-slime") drawStarSlime(ctx, x, y - petLift, now, reduced, moving);
   }
   if (carrying) {
     ctx.fillStyle = "#f09b39"; ctx.fillRect(x - 16, y - 10, 9, 8); ctx.fillStyle = "#fff4b0"; ctx.fillRect(x - 13, y - 10, 3, 8);
@@ -667,9 +699,9 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
   const [shopOpen, setShopOpen] = useState(false);
   const [shopCategory, setShopCategory] = useState<CosmeticCategory>("headgear");
   const [selectedCosmetic, setSelectedCosmetic] = useState("leaf-cap");
-  const [closetBalance, setClosetBalance] = useState(900);
-  const [ownedCosmetics, setOwnedCosmetics] = useState<string[]>(["leaf-cap"]);
-  const [equippedCosmetics, setEquippedCosmetics] = useState<EquippedCosmetics>({ headgear: "leaf-cap", scooter: "default", trail: null, pet: null });
+  const [closetBalance, setClosetBalance] = useState(1400);
+  const [ownedCosmetics, setOwnedCosmetics] = useState<string[]>([]);
+  const [equippedCosmetics, setEquippedCosmetics] = useState<EquippedCosmetics>({ headgear: null, scooter: "default", trail: null, pet: null });
   const equippedRef = useRef(equippedCosmetics); equippedRef.current = equippedCosmetics;
   const [reducedMotion, setReducedMotion] = useState(false);
   const live = useRef({ paused, help, shopOpen, reducedMotion }); live.current = { paused, help, shopOpen, reducedMotion };
