@@ -16,7 +16,8 @@ await testGame("./games/sky-parcel-panic", {
     await gameRegion.focus();
     assert.equal(await page.locator("iframe").getAttribute("allow"), "fullscreen", "the trusted FriendSDK host should permit the sandboxed game to enter fullscreen");
     assert.equal(await gameRegion.getAttribute("data-mobile-controls"), "joystick-boost", "mobile should expose joystick and hold-to-boost controls");
-    assert.equal(await game.getByRole("button", { name: "Enter fullscreen" }).count(), 1, "the HUD should expose a fullscreen toggle");
+    assert.equal(await game.locator(".fullscreen-toggle").count(), 1, "the HUD should include a fullscreen toggle for touch layouts");
+    assert.equal(await game.locator(".fullscreen-toggle").isVisible(), false, "desktop should hide the mobile fullscreen control");
     assert.equal(await game.locator(".touch-joystick").count(), 1, "a draggable touch joystick should be available during play");
     for (let attempt = 0; attempt < 80 && !await canvas.getAttribute("data-parcel-x"); attempt++) await page.waitForTimeout(50);
     assert(await canvas.getAttribute("data-layout-id"), "the randomized route should expose a layout id");
