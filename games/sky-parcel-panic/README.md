@@ -1,6 +1,6 @@
 # Sky Parcel Panic
 
-Sky Parcel Panic is a standalone FriendSDK v0.1.2 game starring the player's
+Sky Parcel Panic is a standalone FriendSDK v0.1.3 game starring the player's
 verified Rare Friend. It is a colorful, SNES-inspired isometric delivery arcade
 game and does not share source, assets, saves, or build output with Alien Angler.
 
@@ -49,7 +49,7 @@ immediately and rank rewards feed back into the same session wallet.
 All RF balances, route coins, rewards, and purchases are simulated. There is no
 on-chain RF transfer, wallet signature, redeemable payout, or persistent save.
 The `game.json` chance definition is a schema-only placeholder required by
-FriendSDK v0.1.2; Delivery Tickets and Route Results are not shown or used.
+FriendSDK v0.1.3; Delivery Tickets and Route Results are not shown or used.
 
 ## Accessibility and audio
 

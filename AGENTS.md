@@ -19,7 +19,7 @@ working in this repository.
 - `games/sky-parcel-panic/style.css`: HUD, overlays and responsive controls.
 - `games/sky-parcel-panic/assets/`: the three original pixel-art districts.
 - `games/sky-parcel-panic/test.mjs`: full FriendSDK browser smoke test.
-- `scripts/patch-friendsdk.mjs`: extends FriendSDK v0.1.2 so the trusted host
+- `scripts/patch-friendsdk.mjs`: extends FriendSDK v0.1.3 so the trusted host
   passes verified owned Friend IDs to the sandboxed game.
 
 ## Current design rules
