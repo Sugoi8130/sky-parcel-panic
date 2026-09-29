@@ -12,7 +12,12 @@ await testGame("./games/sky-parcel-panic", {
     await page.screenshot({ path: "../../outputs/sky-parcel-panic-map-select.png" });
     await game.getByRole("button", { name: "Play FOREST CANOPY" }).click();
     const canvas = game.getByRole("img", { name: /Sky Parcel Panic town/ });
-    await game.getByRole("region", { name: "Sky Parcel Panic game" }).focus();
+    const gameRegion = game.getByRole("region", { name: "Sky Parcel Panic game" });
+    await gameRegion.focus();
+    assert.equal(await page.locator("iframe").getAttribute("allow"), "fullscreen", "the trusted FriendSDK host should permit the sandboxed game to enter fullscreen");
+    assert.equal(await gameRegion.getAttribute("data-mobile-controls"), "joystick-boost", "mobile should expose joystick and hold-to-boost controls");
+    assert.equal(await game.getByRole("button", { name: "Enter fullscreen" }).count(), 1, "the HUD should expose a fullscreen toggle");
+    assert.equal(await game.locator(".touch-joystick").count(), 1, "a draggable touch joystick should be available during play");
     for (let attempt = 0; attempt < 80 && !await canvas.getAttribute("data-parcel-x"); attempt++) await page.waitForTimeout(50);
     assert(await canvas.getAttribute("data-layout-id"), "the randomized route should expose a layout id");
     assert.equal(await canvas.getAttribute("data-route-seconds"), "300", "each route should use a five-minute countdown");
@@ -156,5 +161,51 @@ await testGame("./games/sky-parcel-panic", {
     await game.getByRole("button", { name: "How to play" }).click();
     assert.equal(await game.getByRole("dialog", { name: "How to play" }).isVisible(), true);
     await game.getByRole("button", { name: "BACK TO ROUTE" }).click();
+  }
+});
+
+await testGame("./games/sky-parcel-panic", {
+  width: 480,
+  height: 270,
+  timeout: 45_000,
+  check: async ({ game, page }) => {
+    await game.getByRole("button", { name: "Play POSTAL ROUTE" }).click();
+    const canvas = game.getByRole("img", { name: /Sky Parcel Panic town/ });
+    const gameRegion = game.getByRole("region", { name: "Sky Parcel Panic game" });
+    for (let attempt = 0; attempt < 80 && !await canvas.getAttribute("data-player-x"); attempt++) await page.waitForTimeout(50);
+    await game.getByRole("button", { name: "Enter fullscreen" }).click();
+    for (let attempt = 0; attempt < 20 && await gameRegion.getAttribute("data-fullscreen") !== "true"; attempt++) await page.waitForTimeout(50);
+    assert.equal(await gameRegion.getAttribute("data-fullscreen"), "true", "the mobile fullscreen control should expand the sandboxed game");
+    const joystick = game.locator(".touch-joystick");
+    const boost = game.getByRole("button", { name: "Boost scooter" });
+    assert.equal(await joystick.isVisible(), true, "the joystick should be visible on a landscape touch viewport");
+    assert.equal(await boost.isVisible(), true, "the boost control should be visible on a landscape touch viewport");
+    assert.equal(await game.locator(".rotate-device").isVisible(), false, "the rotate prompt should stay hidden in landscape");
+    const joystickBox = await joystick.boundingBox();
+    assert(joystickBox && joystickBox.width >= 96 && joystickBox.height >= 96, "the mobile joystick should retain a comfortable touch target");
+    const startX = Number(await canvas.getAttribute("data-player-x"));
+    const startY = Number(await canvas.getAttribute("data-player-y"));
+    await page.mouse.move(joystickBox.x + joystickBox.width / 2, joystickBox.y + joystickBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(joystickBox.x + joystickBox.width * .17, joystickBox.y + joystickBox.height / 2);
+    await page.waitForTimeout(350);
+    await page.mouse.up();
+    const endX = Number(await canvas.getAttribute("data-player-x"));
+    const endY = Number(await canvas.getAttribute("data-player-y"));
+    assert(endX !== startX || endY !== startY, "dragging the mobile joystick should move the courier");
+    await gameRegion.screenshot({ path: "../../outputs/sky-parcel-panic-mobile-landscape.png" });
+    await game.getByRole("button", { name: "Exit fullscreen" }).click();
+  }
+});
+
+await testGame("./games/sky-parcel-panic", {
+  width: 390,
+  height: 844,
+  timeout: 45_000,
+  check: async ({ game, page }) => {
+    await game.getByRole("button", { name: "Play POSTAL ROUTE" }).click();
+    await game.getByRole("button", { name: "Enter fullscreen" }).click();
+    await page.waitForTimeout(100);
+    assert.equal(await game.locator(".rotate-device").isVisible(), true, "a portrait phone should receive the rotate-to-landscape prompt");
   }
 });

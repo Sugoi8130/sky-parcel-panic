@@ -40,6 +40,10 @@ await patch("game-host.js", [
     "{ type: \"friendsdk:init\", documentId, handshakeId, friendId: friend.id, mode: activeClient.mode }",
     "{ type: \"friendsdk:init\", documentId, handshakeId, friendId: friend.id, ownedFriendIds: ownedFriendIds ?? [friend.id], mode: activeClient.mode }",
   ],
+  [
+    "sandbox: \"allow-scripts\", referrerPolicy: \"no-referrer\"",
+    "sandbox: \"allow-scripts\", allow: \"fullscreen\", allowFullScreen: true, referrerPolicy: \"no-referrer\"",
+  ],
 ]);
 
-console.log("FriendSDK wallet companion bridge ready.");
+console.log("FriendSDK wallet companion bridge and fullscreen permission ready.");

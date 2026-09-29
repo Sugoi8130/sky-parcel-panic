@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import type { GameComponentProps } from "@rarefriends/friendsdk/runtime";
 import { createFriendReader, spriteFrame, type GenerationSprites, type SpriteFacing } from "@rarefriends/friendsdk/sprites";
 import "./style.css";
@@ -735,6 +735,7 @@ function freshHud(): Hud {
 export default function SkyParcelPanic({ friendId, ownedFriendIds, client, paused }: GameComponentProps) {
   const root = useRef<HTMLElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
+  const joystick = useRef<HTMLDivElement>(null);
   const shopPreview = useRef<HTMLCanvasElement>(null);
   const catalogueGrid = useRef<HTMLDivElement>(null);
   const audio = useRef<GameAudio | null>(null);
@@ -767,6 +768,8 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
   const equippedRef = useRef(equippedCosmetics); equippedRef.current = equippedCosmetics;
   const [reducedMotion, setReducedMotion] = useState(false);
   const [audioMuted, setAudioMuted] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [joystickPosition, setJoystickPosition] = useState({ x: 0, y: 0 });
   const audioMutedRef = useRef(audioMuted); audioMutedRef.current = audioMuted;
   const live = useRef({ paused, help, shopOpen, reducedMotion }); live.current = { paused, help, shopOpen, reducedMotion };
 
@@ -794,6 +797,11 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
     return () => preference.removeEventListener("change", update);
   }, []);
   useEffect(() => { if (paused || help || shopOpen) stopInput(); }, [paused, help, shopOpen]);
+  useEffect(() => {
+    const update = () => setFullscreen(document.fullscreenElement === root.current);
+    document.addEventListener("fullscreenchange", update);
+    return () => document.removeEventListener("fullscreenchange", update);
+  }, []);
   useEffect(() => {
     const engine = audio.current; if (!engine || engine.context.state === "closed") return;
     const audible = phase === "playing" && !paused && !help && !shopOpen;
@@ -981,6 +989,43 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
   }, [status]);
 
   const setDirection = (key: string, active: boolean) => { if (phase !== "playing" || paused || help || shopOpen) return; active ? keys.current.add(key) : keys.current.delete(key); root.current?.focus(); };
+  const releaseJoystick = (event?: ReactPointerEvent<HTMLDivElement>) => {
+    for (const key of ["arrowup", "arrowdown", "arrowleft", "arrowright"]) keys.current.delete(key);
+    setJoystickPosition({ x: 0, y: 0 });
+    if (event && event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+  const moveJoystick = (event: ReactPointerEvent<HTMLDivElement>, capture = false) => {
+    if (phase !== "playing" || paused || help || shopOpen) return;
+    event.preventDefault();
+    const node = joystick.current; if (!node) return;
+    if (capture) node.setPointerCapture(event.pointerId);
+    if (!capture && !node.hasPointerCapture(event.pointerId)) return;
+    const bounds = node.getBoundingClientRect();
+    const radius = Math.max(1, bounds.width * .31);
+    let x = event.clientX - bounds.left - bounds.width / 2;
+    let y = event.clientY - bounds.top - bounds.height / 2;
+    const distance = Math.hypot(x, y);
+    if (distance > radius) { x = x / distance * radius; y = y / distance * radius; }
+    for (const key of ["arrowup", "arrowdown", "arrowleft", "arrowright"]) keys.current.delete(key);
+    const deadZone = radius * .24;
+    if (x < -deadZone) keys.current.add("arrowleft");
+    if (x > deadZone) keys.current.add("arrowright");
+    if (y < -deadZone) keys.current.add("arrowup");
+    if (y > deadZone) keys.current.add("arrowdown");
+    setJoystickPosition({ x, y }); root.current?.focus();
+  };
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else if (root.current?.requestFullscreen) {
+        await root.current.requestFullscreen({ navigationUI: "hide" });
+        const orientation = screen.orientation as ScreenOrientation & { lock?: (value: "landscape") => Promise<void> };
+        if (orientation.lock) void orientation.lock("landscape").catch(() => undefined);
+      }
+    } catch {
+      root.current?.focus();
+    }
+  };
   const handleKey = (event: React.KeyboardEvent<HTMLElement>, active: boolean) => {
     const key = event.key.toLowerCase(); if (!movementKeys.has(key) || phase !== "playing" || help || shopOpen) return;
     event.preventDefault(); active ? keys.current.add(key) : keys.current.delete(key);
@@ -1014,6 +1059,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
     ? layout.current.deliveryStops[game.current.target].district
     : layout.current.parcels[game.current.parcel]?.district ?? district;
   return <main ref={root} className={`parcel-game phase-${phase}`} role="region" aria-label="Sky Parcel Panic game" tabIndex={0}
+    data-mobile-controls="joystick-boost" data-fullscreen={fullscreen}
     onKeyDown={event => handleKey(event, true)} onKeyUp={event => handleKey(event, false)}>
     <img className="postal-plaza" src={activeWorld.scenes[district].image} alt="" aria-hidden="true" />
     <canvas ref={canvas} width={VIEW.width} height={VIEW.height} role="img"
@@ -1026,6 +1072,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
       <button type="button" aria-label={audioMuted ? "Unmute audio" : "Mute audio"} aria-pressed={audioMuted} onClick={() => setAudioMuted(value => !value)}>{audioMuted ? "♫ OFF" : "♫ ON"}</button>
       <button type="button" onClick={() => setShopOpen(true)}>Shop</button>
       <button type="button" onClick={() => setHelp(true)}>How to play</button>
+      <button className="fullscreen-toggle" type="button" aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"} aria-pressed={fullscreen} onClick={() => void toggleFullscreen()}>{fullscreen ? "▣ EXIT" : "▣ FULL"}</button>
     </header>
 
     <aside className="route-card" aria-live="polite">
@@ -1050,16 +1097,21 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
 
     {phase === "playing" && <>
       {hud.powerTime > 0 && <div className="power-status" role="status"><span aria-hidden="true">✦</span><strong>STAR POWER</strong><b>{hud.powerTime}s</b><small>FREE BOOST · SHIELD</small></div>}
-      <div className="touch-pad" aria-label="Touch steering controls">
-        <button aria-label="Drive up" onPointerDown={() => setDirection("arrowup", true)} onPointerUp={() => setDirection("arrowup", false)} onPointerCancel={() => setDirection("arrowup", false)}>▲</button>
-        <button aria-label="Drive left" onPointerDown={() => setDirection("arrowleft", true)} onPointerUp={() => setDirection("arrowleft", false)} onPointerCancel={() => setDirection("arrowleft", false)}>◀</button>
-        <button aria-label="Drive down" onPointerDown={() => setDirection("arrowdown", true)} onPointerUp={() => setDirection("arrowdown", false)} onPointerCancel={() => setDirection("arrowdown", false)}>▼</button>
-        <button aria-label="Drive right" onPointerDown={() => setDirection("arrowright", true)} onPointerUp={() => setDirection("arrowright", false)} onPointerCancel={() => setDirection("arrowright", false)}>▶</button>
+      <div ref={joystick} className="touch-joystick" role="group" aria-label="Touch steering joystick"
+        onPointerDown={event => moveJoystick(event, true)} onPointerMove={event => moveJoystick(event)}
+        onPointerUp={releaseJoystick} onPointerCancel={releaseJoystick} onLostPointerCapture={() => releaseJoystick()}
+        onContextMenu={event => event.preventDefault()}>
+        <span className="joystick-arrows" aria-hidden="true">◆</span>
+        <i className="joystick-knob" aria-hidden="true" style={{ transform: `translate(${joystickPosition.x}px, ${joystickPosition.y}px)` }} />
       </div>
       <button className="boost" type="button" aria-label="Boost scooter" onPointerDown={() => setDirection("boost", true)} onPointerUp={() => setDirection("boost", false)} onPointerCancel={() => setDirection("boost", false)}>
         BOOST <i><span style={{ width: `${hud.boost}%` }} /></i><small>SPACE / SHIFT</small>
       </button>
     </>}
+
+    <section className="rotate-device" aria-label="Rotate device">
+      <div><span aria-hidden="true">▣</span><strong>XOAY NGANG ĐIỆN THOẠI</strong><small>Landscape mode</small></div>
+    </section>
 
     {status && <section className="parcel-overlay" role={failed ? "alert" : "status"}>
       <div><span className="big-icon">☁</span><h1>SKY PARCEL PANIC</h1><p>{status}</p>{failed && <button type="button" disabled={paused} onClick={() => setRevision(value => value + 1)}>RETRY LOADING</button>}</div>
@@ -1079,7 +1131,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
       <div><span className="eyebrow">FINAL DELIVERY REPORT · {activeWorld.name}</span><h1>{game.current.result}</h1><div className={`rank-badge rank-${game.current.rank.toLowerCase()}`}><small>ROUTE RANK</small><strong>{game.current.rank}</strong></div><p><b>{hud.deliveries}/{DELIVERY_GOAL}</b> parcels · <b>{formatTime(hud.time)}</b> remaining · <b>{hud.score}</b> points<br /><span className="rank-reward">+{game.current.rankReward} RF rank bonus</span> · {hud.rf.toFixed(2)} RF collected on route</p><div className="result-actions"><button type="button" disabled={paused} onClick={() => startRun(selectedMap.current)}>RIDE AGAIN</button><button type="button" disabled={paused} onClick={returnToMapSelect}>CHOOSE MAP</button></div></div>
     </section>}
     {help && <section className="help-panel" role="dialog" aria-modal="true" aria-label="How to play">
-      <div><span className="eyebrow">COURIER HANDBOOK</span><h2>HOW TO PLAY</h2><ol><li>Choose a world or Random.</li><li>Complete five deliveries before the five-minute countdown ends.</li><li>Find the glowing delivery Friend.</li><li>Dodge moving hazards and build a ×5 combo.</li></ol><p>Boost is faster but drains its meter. Every RF coin restores {COIN_BOOST_RESTORE} boost. A rare Star Core grants {POWER_BUFF_DURATION} seconds of free boost and hazard immunity. Finish with 3:00 for S, 2:00 for A, 1:00 for B, or under 1:00 for C.</p><label><input type="checkbox" checked={reducedMotion} onChange={event => setReducedMotion(event.target.checked)} /> Reduce motion</label><button type="button" onClick={() => { setHelp(false); requestAnimationFrame(() => root.current?.focus()); }}>BACK TO ROUTE</button></div>
+      <div><span className="eyebrow">COURIER HANDBOOK</span><h2>HOW TO PLAY</h2><ol><li>Choose a world or Random.</li><li>Complete five deliveries before the five-minute countdown ends.</li><li>Find the glowing delivery Friend.</li><li>Dodge moving hazards and build a ×5 combo.</li></ol><p>On mobile, drag the left joystick and hold BOOST on the right. Use FULL for landscape fullscreen. Every RF coin restores {COIN_BOOST_RESTORE} boost. A rare Star Core grants {POWER_BUFF_DURATION} seconds of free boost and hazard immunity. Finish with 3:00 for S, 2:00 for A, 1:00 for B, or under 1:00 for C.</p><label><input type="checkbox" checked={reducedMotion} onChange={event => setReducedMotion(event.target.checked)} /> Reduce motion</label><button type="button" onClick={() => { setHelp(false); requestAnimationFrame(() => root.current?.focus()); }}>BACK TO ROUTE</button></div>
     </section>}
     {shopOpen && <section className="closet-panel" role="dialog" aria-modal="true" aria-label="Courier Closet">
       <div className="closet-window interactive-closet">

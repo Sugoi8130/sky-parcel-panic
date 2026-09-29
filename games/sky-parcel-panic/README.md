@@ -21,8 +21,10 @@ Generations NFT, generation 1 or higher.
 
 - Choose one of four worlds, each containing three connected scenes.
 - Complete five deliveries during a five-minute route.
-- Drive with WASD or arrow keys. Hold Space, Shift, or the touch BOOST button
-  for a temporary speed increase.
+- Drive with WASD or arrow keys on desktop. On mobile, rotate to landscape,
+  drag the left joystick, and hold the right BOOST button for a temporary speed
+  increase. The HUD fullscreen button expands the game when the browser permits
+  fullscreen access.
 - Pick up the sparkling parcel, follow the named exit signs, and reach the
   highlighted Rare Friend recipient.
 - Deliver again within twelve seconds to grow the combo up to x5.
