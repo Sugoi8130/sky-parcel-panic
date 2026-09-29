@@ -195,6 +195,17 @@ await testGame("./games/sky-parcel-panic", {
     assert(endX !== startX || endY !== startY, "dragging the mobile joystick should move the courier");
     await gameRegion.screenshot({ path: "../../outputs/sky-parcel-panic-mobile-landscape.png" });
     await game.getByRole("button", { name: "Exit fullscreen" }).click();
+    await game.getByRole("button", { name: "Enter fullscreen" }).waitFor();
+    await game.locator("body").evaluate(() => {
+      Object.defineProperty(Element.prototype, "requestFullscreen", { configurable: true, value: () => Promise.reject(new Error("Blocked by wallet WebView")) });
+    });
+    await game.getByRole("button", { name: "Enter fullscreen" }).click();
+    for (let attempt = 0; attempt < 20 && await gameRegion.getAttribute("data-fullscreen-mode") !== "expanded"; attempt++) await page.waitForTimeout(50);
+    assert.equal(await gameRegion.getAttribute("data-fullscreen-mode"), "expanded", "blocked Fullscreen API should activate the wallet-browser fallback");
+    assert.equal(await page.locator(".rf-game-frame").evaluate(element => element.classList.contains("rf-pseudo-fullscreen")), true, "the trusted host should expand the game over its browser viewport");
+    await game.getByRole("button", { name: "Exit fullscreen" }).click();
+    for (let attempt = 0; attempt < 20 && await page.locator(".rf-game-frame").evaluate(element => element.classList.contains("rf-pseudo-fullscreen")); attempt++) await page.waitForTimeout(50);
+    assert.equal(await page.locator(".rf-game-frame").evaluate(element => element.classList.contains("rf-pseudo-fullscreen")), false, "leaving fallback fullscreen should restore the normal FriendSDK frame");
   }
 });
 

@@ -769,6 +769,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
   const [reducedMotion, setReducedMotion] = useState(false);
   const [audioMuted, setAudioMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [fallbackFullscreen, setFallbackFullscreen] = useState(false);
   const [joystickPosition, setJoystickPosition] = useState({ x: 0, y: 0 });
   const audioMutedRef = useRef(audioMuted); audioMutedRef.current = audioMuted;
   const live = useRef({ paused, help, shopOpen, reducedMotion }); live.current = { paused, help, shopOpen, reducedMotion };
@@ -1015,15 +1016,21 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
     setJoystickPosition({ x, y }); root.current?.focus();
   };
   const toggleFullscreen = async () => {
+    const setFallback = (expanded: boolean) => {
+      window.parent.postMessage({ type: "sky-parcel-panic:display-mode", expanded }, "*");
+      setFallbackFullscreen(expanded);
+    };
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
+      else if (fallbackFullscreen) setFallback(false);
       else if (root.current?.requestFullscreen) {
         await root.current.requestFullscreen({ navigationUI: "hide" });
+        if (document.fullscreenElement !== root.current) setFallback(true);
         const orientation = screen.orientation as ScreenOrientation & { lock?: (value: "landscape") => Promise<void> };
         if (orientation.lock) void orientation.lock("landscape").catch(() => undefined);
-      }
+      } else setFallback(true);
     } catch {
-      root.current?.focus();
+      setFallback(true); root.current?.focus();
     }
   };
   const handleKey = (event: React.KeyboardEvent<HTMLElement>, active: boolean) => {
@@ -1059,7 +1066,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
     ? layout.current.deliveryStops[game.current.target].district
     : layout.current.parcels[game.current.parcel]?.district ?? district;
   return <main ref={root} className={`parcel-game phase-${phase}`} role="region" aria-label="Sky Parcel Panic game" tabIndex={0}
-    data-mobile-controls="joystick-boost" data-fullscreen={fullscreen}
+    data-mobile-controls="joystick-boost" data-fullscreen={fullscreen || fallbackFullscreen} data-fullscreen-mode={fullscreen ? "native" : fallbackFullscreen ? "expanded" : "windowed"}
     onKeyDown={event => handleKey(event, true)} onKeyUp={event => handleKey(event, false)}>
     <img className="postal-plaza" src={activeWorld.scenes[district].image} alt="" aria-hidden="true" />
     <canvas ref={canvas} width={VIEW.width} height={VIEW.height} role="img"
@@ -1072,7 +1079,7 @@ export default function SkyParcelPanic({ friendId, ownedFriendIds, client, pause
       <button type="button" aria-label={audioMuted ? "Unmute audio" : "Mute audio"} aria-pressed={audioMuted} onClick={() => setAudioMuted(value => !value)}>{audioMuted ? "♫ OFF" : "♫ ON"}</button>
       <button type="button" onClick={() => setShopOpen(true)}>Shop</button>
       <button type="button" onClick={() => setHelp(true)}>How to play</button>
-      <button className="fullscreen-toggle" type="button" aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"} aria-pressed={fullscreen} onClick={() => void toggleFullscreen()}>{fullscreen ? "▣ EXIT" : "▣ FULL"}</button>
+      <button className="fullscreen-toggle" type="button" aria-label={fullscreen || fallbackFullscreen ? "Exit fullscreen" : "Enter fullscreen"} aria-pressed={fullscreen || fallbackFullscreen} onClick={() => void toggleFullscreen()}>{fullscreen || fallbackFullscreen ? "▣ EXIT" : "▣ FULL"}</button>
     </header>
 
     <aside className="route-card" aria-live="polite">

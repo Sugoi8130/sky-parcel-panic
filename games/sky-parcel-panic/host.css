@@ -2,3 +2,27 @@
   --rf-game-max-width: 960px;
   --rf-game-aspect-ratio: 3 / 2;
 }
+
+html.rf-pseudo-fullscreen,
+html.rf-pseudo-fullscreen body,
+html.rf-pseudo-fullscreen #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+.rf-game-frame.rf-pseudo-fullscreen {
+  position: fixed;
+  z-index: 2147483647;
+  inset: 0;
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  aspect-ratio: auto;
+  border: 0;
+}
+
+.rf-game-frame.rf-pseudo-fullscreen .rf-frame-toolbar {
+  display: none;
+}

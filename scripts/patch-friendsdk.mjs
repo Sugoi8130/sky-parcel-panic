@@ -44,6 +44,14 @@ await patch("game-host.js", [
     "sandbox: \"allow-scripts\", referrerPolicy: \"no-referrer\"",
     "sandbox: \"allow-scripts\", allow: \"fullscreen\", allowFullScreen: true, referrerPolicy: \"no-referrer\"",
   ],
+  [
+    "if (!alive || event.source !== frame.contentWindow)\n                return;\n            if (documentId === event.data?.documentId",
+    "if (!alive || event.source !== frame.contentWindow)\n                return;\n            if (event.data?.type === \"sky-parcel-panic:display-mode\") {\n                const expanded = event.data.expanded === true;\n                frame.closest(\".rf-game-frame\")?.classList.toggle(\"rf-pseudo-fullscreen\", expanded);\n                document.documentElement.classList.toggle(\"rf-pseudo-fullscreen\", expanded);\n                return;\n            }\n            if (documentId === event.data?.documentId",
+  ],
+  [
+    "window.removeEventListener(\"message\", ready);\n            bridge.current?.close();",
+    "window.removeEventListener(\"message\", ready);\n            frame.closest(\".rf-game-frame\")?.classList.remove(\"rf-pseudo-fullscreen\");\n            document.documentElement.classList.remove(\"rf-pseudo-fullscreen\");\n            bridge.current?.close();",
+  ],
 ]);
 
 console.log("FriendSDK wallet companion bridge and fullscreen permission ready.");
